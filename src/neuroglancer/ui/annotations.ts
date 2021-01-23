@@ -271,7 +271,7 @@ export class AnnotationLayerView extends Tab {
       }
       const source = state.source;
       const refCounted = new RefCounted();
-      if (source instanceof AnnotationSource) {
+      if (source instanceof AnnotationSource || source instanceof MultiscaleAnnotationSource) {
         refCounted.registerDisposer(
             source.childAdded.add((annotation) => this.addAnnotationElement(annotation, state)));
         refCounted.registerDisposer(source.childUpdated.add(
@@ -871,6 +871,7 @@ const ANNOTATE_BOUNDING_BOX_TOOL_ID = 'annotateBoundingBox';
 const ANNOTATE_ELLIPSOID_TOOL_ID = 'annotateSphere';
 
 export class PlacePointTool extends PlaceAnnotationTool {
+  sourceSignalUpdated = false;
   trigger(mouseState: MouseSelectionState) {
     const {annotationLayer} = this;
     if (annotationLayer === undefined) {
@@ -889,7 +890,20 @@ export class PlacePointTool extends PlaceAnnotationTool {
         properties: annotationLayer.source.properties.map(x => x.default),
       };
       const reference = annotationLayer.source.add(annotation, /*commit=*/ true);
-      this.layer.selectAnnotation(annotationLayer, reference.id, true);
+      if (annotationLayer.source instanceof MultiscaleAnnotationSource) {
+        if (!this.sourceSignalUpdated) {
+          annotationLayer.source.childAdded.add(
+            (annotation: Annotation) => {
+              console.log('Annotation updated');
+              this.layer.selectAnnotation(annotationLayer, annotation.id, true);
+            }
+          );
+          this.sourceSignalUpdated = true;
+        }
+      } else {
+        this.layer.selectAnnotation(annotationLayer, reference.id, true);
+      }
+
       reference.dispose();
     }
   }
@@ -1374,6 +1388,10 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
               (state.annotationSubsource === undefined ||
                x.subsourceId === state.annotationSubsource));
       if (annotationLayer === undefined) return false;
+      if (annotationLayer.source instanceof MultiscaleAnnotationSource) {
+        // if (!annotationLayer.source.hasReference(state.annotationId)) return false;
+      }
+
       const reference =
           context.registerDisposer(annotationLayer.source.getReference(state.annotationId));
       parent.appendChild(

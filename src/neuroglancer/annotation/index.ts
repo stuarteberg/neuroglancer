@@ -42,6 +42,18 @@ export class AnnotationReference extends RefCounted {
   constructor(public id: AnnotationId) {
     super();
   }
+
+  addRef() {
+    console.log('Adding ref', this);
+    return super.addRef();
+  }
+
+  dispose() {
+    if (this.refCount === 1) {
+      console.log('Deleting', this);
+    }
+    super.dispose();
+  }
 }
 
 export enum AnnotationType {
