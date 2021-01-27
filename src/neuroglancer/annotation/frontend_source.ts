@@ -30,6 +30,8 @@ import {Buffer} from 'neuroglancer/webgl/buffer';
 import {GL} from 'neuroglancer/webgl/context';
 import {registerRPC, registerSharedObjectOwner, RPC, SharedObject} from 'neuroglancer/worker_rpc';
 
+const DEBUG = true;
+
 export interface AnnotationGeometryChunkSourceOptions extends SliceViewChunkSourceOptions {
   spec: AnnotationGeometryChunkSpecification;
   parent: Borrowed<MultiscaleAnnotationSource>;
@@ -355,6 +357,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
   readonly properties: Readonly<AnnotationPropertySpec>[];
   readonly annotationPropertySerializer: AnnotationPropertySerializer;
   getUser?(): string|undefined;
+  makeEditWidget: (reference: AnnotationReference) => HTMLElement|null;
   constructor(public chunkManager: Borrowed<ChunkManager>, options: {
     rank: number,
     relationships: readonly string[],
@@ -531,7 +534,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     }
     existing = new AnnotationReference(id);
     this.references.set(id, existing);
-    existing.addRef(); //Looks like it is necessary
+    // existing.addRef(); //Looks like it is necessary
     this.rpc!.invoke(ANNOTATION_REFERENCE_ADD_RPC_ID, {id: this.rpcId, annotation: id});
     existing.registerDisposer(() => {
       this.references.delete(id);
@@ -736,6 +739,10 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     reference.dispose();
 
     this.localUpdates.delete(id);
+
+    if (DEBUG) {
+      console.log('#references', this.references.size);
+    }
   }
 
   // FIXME

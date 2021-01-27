@@ -65,15 +65,27 @@ export class AnnotationFacade {
     this.annotation = annotation as FlyEMAnnotation;
   }
 
+  get renderingAttribute() {
+    return 0;
+  }
+
+  updateProperties() {
+    this.annotation.properties = [this.renderingAttribute];
+  }
+
+  get ext() {
+    if (this.annotation.ext === undefined) {
+      this.annotation.ext = {};
+    }
+
+    return this.annotation.ext;
+  }
+
   get prop() {
     return this.annotation.prop;
   }
 
-  get ext() {
-    return this.annotation.ext;
-  }
-
-  set prop(value) {
+  set prop(value: {[key: string]: any}|undefined) {
     this.annotation.prop = value;
   }
 
@@ -114,23 +126,28 @@ export class AnnotationFacade {
     return this.prop && this.prop.comment;
   }
 
-  updateDescription() {
+  get description() {
+    return this.comment;
+  }
+
+  updatePresentation() {
     if (this.title) {
       this.annotation.description = this.title + ": ";
+    } else {
+      this.annotation.description = '';
     }
-    if (this.comment) {
-      this.annotation.description = (this.annotation.description || '') + this.comment;
-    }
+
+    this.annotation.description += this.description;
   }
 
   update() {
-    this.updateDescription();
-    this.annotation.properties = [0];
+    this.updatePresentation();
+    this.updateProperties();
   }
 
   set comment(s) {
     this.setProp({comment: s});
-    this.updateDescription();
+    this.updatePresentation();
   }
 
   updateComment() {
@@ -144,7 +161,7 @@ export class AnnotationFacade {
 
   set title(s) {
     this.setProp({title: s});
-    this.updateDescription();
+    this.updatePresentation();
   }
 
   get timestamp() {
@@ -164,7 +181,7 @@ export class AnnotationFacade {
   }
 
   get presentation() {
-    this.updateDescription();
+    this.updatePresentation();
 
     return this.annotation.description || '';
   }
@@ -175,9 +192,9 @@ export class AnnotationFacade {
 }
 
 export function typeOfAnnotationId(id: AnnotationId) {
-  if (id.match(/^-?\d+_-?\d+_-?\d+$/)) {
+  if (id.match(/^-?\d+_-?\d+_-?\d+$/) || id.match(/^Pt-?\d+_-?\d+_-?\d+$/)) {
     return AnnotationType.POINT;
-  } else if (id.match(/^-?\d+_-?\d+_-?\d+--?\d+_-?\d+_-?\d+-Line$/)) {
+  } else if (id.match(/^-?\d+_-?\d+_-?\d+--?\d+_-?\d+_-?\d+-Line$/) || id.match(/^Ln-?\d+_-?\d+_-?\d+_?\d+_-?\d+_-?\d+/)) {
     return AnnotationType.LINE;
   } else {
     console.log(`Invalid annotation ID for DVID: ${id}`);

@@ -1394,6 +1394,12 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
 
       const reference =
           context.registerDisposer(annotationLayer.source.getReference(state.annotationId));
+          /*
+      if (reference.value === null || reference.value === undefined) {
+        reference.dispose();
+        return false;
+      }
+      */
       parent.appendChild(
           context
               .registerDisposer(new DependentViewWidget(
@@ -1598,7 +1604,19 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
                       parent.appendChild(label);
                     }
 
-                    if (!annotationLayer.source.readonly || annotation.description) {
+                    let editWidget = null;
+                    let { source } = annotationLayer;
+                    if (source instanceof MultiscaleAnnotationSource) {
+                      if (source.makeEditWidget) {
+                        editWidget = source.makeEditWidget(reference);
+                        if (editWidget) {
+                          editWidget.className = 'neuroglancer-annotation-details-description';
+                          parent.appendChild(editWidget);
+                        }
+                      }
+                    }
+
+                    if ((!annotationLayer.source.readonly || annotation.description) && editWidget === null) {
                       if (annotationLayer.source.readonly) {
                         const description = document.createElement('div');
                         description.className = 'neuroglancer-annotation-details-description';

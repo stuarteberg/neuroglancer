@@ -33,14 +33,16 @@ import {BoundingBox, makeCoordinateSpace, makeIdentityTransform, makeIdentityTra
 import {parseQueryStringParameters, verifyObject, verifyObjectProperty, verifyString} from 'neuroglancer/util/json';
 import {CompleteUrlOptions, DataSource, DataSourceProvider, GetDataSourceOptions} from 'neuroglancer/datasource';
 import {getUserFromToken, AnnotationFacade} from 'src/neuroglancer/datasource/flyem/annotation';
-import {parseDescription} from 'neuroglancer/datasource/clio/utils';
+import {ClioAnnotationFacade, parseDescription} from 'neuroglancer/datasource/clio/utils';
 import {Borrowed} from 'neuroglancer/util/disposable';
 import {makeRequest} from 'neuroglancer/datasource/dvid/api';
 import {parseUrl} from 'neuroglancer/util/http_request';
 import {StatusMessage} from 'neuroglancer/status';
 // import {createBasicElement} from 'src/neuroglancer/datasource/flyem/widgets';
 // import {makeAnnotationEditWidget} from 'neuroglancer/datasource/dvid/widgets';
+import {FlyEMAnnotation} from 'src/neuroglancer/datasource/flyem/annotation';
 import {VolumeInfo} from 'src/neuroglancer/datasource/flyem/datainfo';
+import {makeAnnotationEditWidget} from 'src/neuroglancer/datasource/flyem/widgets';
 import {defaultAnnotationSchema, defaultAtlasSchema as defaultAtlasSchema} from 'neuroglancer/datasource/clio/utils';
 import {ClioToken, credentialsKey, makeRequestWithCredentials, getGrayscaleInfoUrl, ClioInstance} from 'neuroglancer/datasource/clio/api';
 import {AnnotationSourceParameters, AnnotationChunkSourceParameters, ClioSourceParameters} from 'neuroglancer/datasource/clio/base';
@@ -214,12 +216,30 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
     this.childAdded = this.childAdded || new Signal<(annotation: Annotation) => void>();
     this.childUpdated = this.childUpdated || new Signal<(annotation: Annotation) => void>();
     this.childDeleted = this.childDeleted || new Signal<(annotationId: string) => void>();
-    /*
-    this.childRefreshed = this.childRefreshed || new NullarySignal();
 
     this.makeEditWidget = (reference: AnnotationReference) => {
-      return makeAnnotationEditWidget(reference, this.parameters.schema, this);
+      const getFacade = (annotation: FlyEMAnnotation) => {
+        return new ClioAnnotationFacade(annotation);
+      }
+
+      const getProp = (annotation: FlyEMAnnotation) => {
+        return {...annotation.prop, ...annotation.ext};
+      };
+      const setProp = (annotation: FlyEMAnnotation, prop: {[key:string]: any}) => {
+        const annotationRef = new ClioAnnotationFacade(annotation);
+        if (prop.title) {
+          annotationRef.title = prop.title;
+        }
+        if (prop.description) {
+          annotationRef.description = prop.description;
+        }
+      };
+
+      return makeAnnotationEditWidget(reference, this.parameters.schema, this, getFacade, getProp, setProp);
     };
+
+    /*
+    this.childRefreshed = this.childRefreshed || new NullarySignal();
 
     this.makeFilterWidget = () => {
       let element = createBasicElement(
@@ -308,9 +328,9 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
       newAnnotation.point = newAnnotation.point.map(x => Math.round(x));
     }
 
-    const annotationRef = new AnnotationFacade(newAnnotation);
+    // const annotationRef = new AnnotationFacade(newAnnotation);
     // annotationRef.updateComment();
-    annotationRef.update();
+    // annotationRef.update();
     super.update(reference, newAnnotation);
   }
 

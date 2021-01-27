@@ -23,7 +23,7 @@ import {JsonObject, getJsonSchemaProperties, PropertyTreeNode} from 'src/neurogl
 // import {StatusMessage} from 'neuroglancer/status';
 import {AnnotationType, AnnotationReference, Annotation} from 'neuroglancer/annotation/index';
 import {Borrowed} from 'neuroglancer/util/disposable';
-import {AnnotationFacade, defaultJsonSchema} from 'src/neuroglancer/datasource/flyem/annotation';
+import {AnnotationFacade, defaultJsonSchema, FlyEMAnnotation} from 'src/neuroglancer/datasource/flyem/annotation';
 
 const ANNOTATION_ROOT_ID = 'annotation';
 
@@ -374,7 +374,7 @@ export interface FrontendAnnotationSource {
 };
 
 
-export function makeAnnotationEditWidget(reference: AnnotationReference, schema: JsonObject|null|undefined, source: FrontendAnnotationSource) {
+export function makeAnnotationEditWidget(reference: AnnotationReference, schema: JsonObject|null|undefined, source: FrontendAnnotationSource, getFacade: (annotation: FlyEMAnnotation) => AnnotationFacade, getProp?: (annotation: FlyEMAnnotation) => {[key:string]: any}, setProp?: (annotation: FlyEMAnnotation, prop: {[key:string]: any}) => void) {
   const annotation = {...reference.value!};
 
   if (annotation.type !== AnnotationType.POINT &&
@@ -386,8 +386,8 @@ export function makeAnnotationEditWidget(reference: AnnotationReference, schema:
     schema = defaultJsonSchema;
   }
 
-  const annotationRef = new AnnotationFacade(annotation);
-  const prop = annotationRef.prop;
+  const annotationRef = getFacade(annotation);
+  const prop = getProp ? getProp(annotation) : annotationRef.prop;
   let widget = createAnnotationWidget(schema, prop ? { 'Prop': prop } : {}, source.readonly);
 
   // console.log(annotation);
@@ -399,8 +399,13 @@ export function makeAnnotationEditWidget(reference: AnnotationReference, schema:
     getObjectFromWidget(schema, '', result, 'annotation');
     // alert(JSON.stringify(result));
     const x = result['Prop'];
-    annotationRef.setProp(x);
-    annotationRef.updateDescription();
+    if (setProp) {
+      setProp(annotation, x);
+    } else {
+      annotationRef.setProp(x);
+    }
+
+    annotationRef.updatePresentation();
 
     source.update(reference, annotation);
     source.commit(reference);
