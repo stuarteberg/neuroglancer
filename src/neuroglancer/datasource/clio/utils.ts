@@ -20,8 +20,8 @@
 
 import {verifyObject, verifyObjectProperty, verifyString, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
-import {PointAnnotation, LineAnnotation, defaultJsonSchema, AnnotationFacade} from 'src/neuroglancer/datasource/flyem/annotation';
-import { AnnotationType } from 'src/neuroglancer/annotation';
+import {PointAnnotation, LineAnnotation, defaultJsonSchema, AnnotationFacade} from 'neuroglancer/datasource/flyem/annotation';
+import { AnnotationType } from 'neuroglancer/annotation';
 
 export type ClioPointAnnotation = PointAnnotation;
 export type ClioLineAnnotation = LineAnnotation;
@@ -253,6 +253,60 @@ export class V2PointAnnotationRequestHelper extends AnnotationRequestHelper<Clio
     }
   }
 }
+
+/*
+export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioPointAnnotation> {
+  encode(annotation: ClioPointAnnotation): { [key: string]: any } | null {
+    const annotationRef = new ClioAnnotationFacade(annotation);
+    if (!annotationRef.user) {
+      return null;
+    }
+
+    let obj: { [key: string]: any } = {
+      tags: []
+    };
+
+    obj.description = annotationRef.description;
+    obj.user = annotationRef.user;
+
+    if (annotationRef.title !== undefined) {
+      obj.title = annotationRef.title;
+    }
+
+    obj.prop = { ...annotation.prop };
+
+    obj.kind = 'point';
+    obj.pos = [annotation.point[0], annotation.point[1], annotation.point[2]];
+
+    return obj;
+  }
+
+  decode(key: string, entry: { [key: string]: any }): ClioPointAnnotation | null {
+    try {
+      if (verifyObjectProperty(entry, 'kind', verifyString) !== 'point') {
+        throw new Error('Invalid kind for point annotation data.');
+      }
+
+      const point = verifyObjectProperty(entry, 'pos', x => parseIntVec(new Float32Array(3), x));
+
+      const annotation: ClioPointAnnotation = {
+        id: key,
+        type: AnnotationType.POINT,
+        kind: this.defaultKind,
+        point,
+        properties: []
+      };
+
+      decodeAnnotationPropV2(entry, annotation);
+
+      return annotation;
+    } catch (e) {
+      console.log(e);
+      return null;
+    }
+  }
+}
+*/
 
 export class V2AtlasAnnotationRequestHelper extends V2PointAnnotationRequestHelper {
   defaultKind = 'Atlas';

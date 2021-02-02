@@ -19,7 +19,7 @@
  */
 
 import {vec3} from 'neuroglancer/util/geom';
-import { AnnotationPropertySpec } from 'src/neuroglancer/annotation';
+import { AnnotationPropertySpec } from 'neuroglancer/annotation';
 
 const annotationChunkDataSize = vec3.fromValues(64, 64, 64);
 

@@ -19,8 +19,8 @@
  */
 
 import {parseUrl} from 'neuroglancer/util/http_request';
-import {DefaultTokenType} from 'src/neuroglancer/datasource/flyem/api';
-export {makeRequestWithCredentials} from 'src/neuroglancer/datasource/flyem/api';
+import {DefaultTokenType} from 'neuroglancer/datasource/flyem/api';
+export {makeRequestWithCredentials} from 'neuroglancer/datasource/flyem/api';
 import {ClioSourceParameters} from 'neuroglancer/datasource/clio/base';
 
 export type ClioToken = DefaultTokenType;

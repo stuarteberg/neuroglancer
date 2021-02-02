@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-import {FlyEMCredentialsProvider} from 'src/neuroglancer/datasource/flyem/api';
+import {FlyEMCredentialsProvider} from 'neuroglancer/datasource/flyem/api';
 import {ClioToken} from 'neuroglancer/datasource/clio/api';
 
 export class ClioCredentialsProvider extends FlyEMCredentialsProvider<ClioToken> {

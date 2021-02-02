@@ -18,12 +18,12 @@
  * limitations under the License.
  */
 
-import {JsonObject, getJsonSchemaProperties, PropertyTreeNode} from 'src/neuroglancer/datasource/flyem/jsonschema';
+import {JsonObject, getJsonSchemaProperties, PropertyTreeNode} from 'neuroglancer/datasource/flyem/jsonschema';
 // import {proofreadingStats} from 'neuroglancer/datasource/dvid/frontend';
 // import {StatusMessage} from 'neuroglancer/status';
 import {AnnotationType, AnnotationReference, Annotation} from 'neuroglancer/annotation/index';
 import {Borrowed} from 'neuroglancer/util/disposable';
-import {AnnotationFacade, defaultJsonSchema, FlyEMAnnotation} from 'src/neuroglancer/datasource/flyem/annotation';
+import {AnnotationFacade, defaultJsonSchema, FlyEMAnnotation} from 'neuroglancer/datasource/flyem/annotation';
 
 const ANNOTATION_ROOT_ID = 'annotation';
 
