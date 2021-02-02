@@ -137,7 +137,9 @@ export class AnnotationFacade {
       this.annotation.description = '';
     }
 
-    this.annotation.description += this.description;
+    if (this.description) {
+      this.annotation.description += this.description;
+    }
   }
 
   update() {

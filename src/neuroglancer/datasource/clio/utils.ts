@@ -359,7 +359,31 @@ export function makeEncoders(api: string|undefined, kind: string|undefined) {
   });
 }
 
-export const defaultAnnotationSchema = defaultJsonSchema;
+export const defaultAnnotationSchema = {
+  "definitions": {},
+  "type": "object",
+  "required": [
+    "Prop"
+  ],
+  "properties": {
+    "Prop": {
+      "$id": "#/properties/Prop",
+      "type": "object",
+      "title": "Properties",
+      "required": [
+        "description"
+      ],
+      "properties": {
+        "description": {
+          "$id": "#/properties/Prop/properties/description",
+          "type": "string",
+          "title": "Description",
+          "default": ""
+        }
+      }
+    }
+  }
+};
 
 export const defaultAtlasSchema = {
   "definitions": {},
