@@ -20,7 +20,7 @@
 
 import {verifyObject, verifyObjectProperty, verifyString, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
-import {PointAnnotation, LineAnnotation, defaultJsonSchema, AnnotationFacade} from 'neuroglancer/datasource/flyem/annotation';
+import {PointAnnotation, LineAnnotation, AnnotationFacade} from 'neuroglancer/datasource/flyem/annotation';
 import { AnnotationType } from 'neuroglancer/annotation';
 
 export type ClioPointAnnotation = PointAnnotation;
