@@ -301,7 +301,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
           this.credentialsProvider,
           {
             method: 'POST',
-            url: clioInstance.getAnnotationUrl((<ClioPointAnnotation>annotation).point),
+            url: clioInstance.getPostAnnotationUrl((<ClioPointAnnotation>annotation).point),
             payload: value,
             responseType: '',
           });
@@ -344,7 +344,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
         this.credentialsProvider,
         {
           method: 'DELETE',
-          url: clioInstance.getAnnotationUrl(id.split('_')),
+          url: clioInstance.getDeleteAnnotationUrl(id),
           // url: getAnnotationUrl(parameters, id.split('_')),
           responseType: ''
         }).then(() => { annotationStore.remove(id); });

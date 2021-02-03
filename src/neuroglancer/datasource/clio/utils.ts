@@ -254,9 +254,8 @@ export class V2PointAnnotationRequestHelper extends AnnotationRequestHelper<Clio
   }
 }
 
-/*
-export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioPointAnnotation> {
-  encode(annotation: ClioPointAnnotation): { [key: string]: any } | null {
+export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioLineAnnotation> {
+  encode(annotation: ClioLineAnnotation): { [key: string]: any } | null {
     const annotationRef = new ClioAnnotationFacade(annotation);
     if (!annotationRef.user) {
       return null;
@@ -275,25 +274,25 @@ export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioP
 
     obj.prop = { ...annotation.prop };
 
-    obj.kind = 'point';
-    obj.pos = [annotation.point[0], annotation.point[1], annotation.point[2]];
+    obj.kind = 'lineseg';
+    obj.pos = [annotation.pointA[0], annotation.pointA[1], annotation.pointA[2], annotation.pointB[0], annotation.pointB[1], annotation.pointB[2]];
 
     return obj;
   }
 
-  decode(key: string, entry: { [key: string]: any }): ClioPointAnnotation | null {
+  decode(key: string, entry: { [key: string]: any }): ClioLineAnnotation | null {
     try {
-      if (verifyObjectProperty(entry, 'kind', verifyString) !== 'point') {
-        throw new Error('Invalid kind for point annotation data.');
+      if (verifyObjectProperty(entry, 'kind', verifyString) !== 'lineseg') {
+        throw new Error('Invalid kind for line annotation data.');
       }
 
-      const point = verifyObjectProperty(entry, 'pos', x => parseIntVec(new Float32Array(3), x));
+      const pos = verifyObjectProperty(entry, 'pos', x => parseIntVec(new Float32Array(6), x));
 
-      const annotation: ClioPointAnnotation = {
+      const annotation: ClioLineAnnotation = {
         id: key,
-        type: AnnotationType.POINT,
-        kind: this.defaultKind,
-        point,
+        type: AnnotationType.LINE,
+        pointA: pos.slice(0, 3),
+        pointB: pos.slice(3, 6),
         properties: []
       };
 
@@ -306,7 +305,6 @@ export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioP
     }
   }
 }
-*/
 
 export class V2AtlasAnnotationRequestHelper extends V2PointAnnotationRequestHelper {
   defaultKind = 'Atlas';
@@ -349,7 +347,8 @@ export function makeEncoders(api: string|undefined, kind: string|undefined) {
       });
     } else {
       return makeAnnotationRequestHelpers({
-        [AnnotationType.POINT]: new V2PointAnnotationRequestHelper(true)
+        [AnnotationType.POINT]: new V2PointAnnotationRequestHelper(true),
+        [AnnotationType.LINE]: new V2LineAnnotationRequestHelper(true)
       });
     }
   }

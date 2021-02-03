@@ -382,7 +382,7 @@ export function makeAnnotationEditWidget(reference: AnnotationReference, schema:
     return null;
   }
 
-  if (!schema || annotation.type !== AnnotationType.POINT) {
+  if (!schema) {
     schema = defaultJsonSchema;
   }
 

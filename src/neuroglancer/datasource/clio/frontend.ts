@@ -41,7 +41,7 @@ import {StatusMessage} from 'neuroglancer/status';
 import {FlyEMAnnotation} from 'neuroglancer/datasource/flyem/annotation';
 import {VolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {makeAnnotationEditWidget} from 'neuroglancer/datasource/flyem/widgets';
-import {defaultAnnotationSchema, defaultAtlasSchema as defaultAtlasSchema} from 'neuroglancer/datasource/clio/utils';
+import {defaultAnnotationSchema, defaultAtlasSchema} from 'neuroglancer/datasource/clio/utils';
 import {ClioToken, credentialsKey, makeRequestWithCredentials, getGrayscaleInfoUrl, ClioInstance} from 'neuroglancer/datasource/clio/api';
 import {AnnotationSourceParameters, AnnotationChunkSourceParameters, ClioSourceParameters} from 'neuroglancer/datasource/clio/base';
 
