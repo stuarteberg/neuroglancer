@@ -562,7 +562,7 @@ export class Viewer extends RefCounted implements ViewerState {
     const sidePanelVisible = {
       changed: new Signal(),
       get value() {
-        return self.selectedLayer.visible || self.selectionDetailsState.visible.value;
+        return self.expectingExternalUI ? self.selectedLayer.visible : (self.selectedLayer.visible || self.selectionDetailsState.visible.value);
       },
       set value(visible: boolean) {
         self.selectedLayer.visible = visible;
@@ -570,10 +570,8 @@ export class Viewer extends RefCounted implements ViewerState {
       }
     };
     this.registerDisposer(this.selectedLayer.changed.add(sidePanelVisible.changed.dispatch));
-    if (!this.expectingExternalUI) {
-      this.registerDisposer(
-        this.selectionDetailsState.changed.add(sidePanelVisible.changed.dispatch));
-    }
+    this.registerDisposer(
+      this.selectionDetailsState.changed.add(sidePanelVisible.changed.dispatch));
     this.registerDisposer(new DragResizablePanel(
         sidePanel, sidePanelVisible, this.selectedLayer.size, 'horizontal', 290));
     const layerInfoPanel =
