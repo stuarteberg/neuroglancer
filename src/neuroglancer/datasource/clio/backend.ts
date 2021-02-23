@@ -96,7 +96,7 @@ function parseAnnotations(
             if (emittingAddSignal) {
               source.rpc!.invoke(ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID, {
                 id: source.rpcId,
-                newAnnotation: { ...annotation }
+                newAnnotation: annotation
               });
             }
           }
@@ -303,7 +303,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
             method: 'POST',
             url: clioInstance.getPostAnnotationUrl((<ClioPointAnnotation>annotation).point),
             payload: value,
-            responseType: '',
+            responseType: 'json',
           });
       } else {
         return Promise.resolve(getAnnotationId(annotation));
@@ -315,7 +315,10 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
 
   private addAnnotation(annotation: ClioAnnotation) {
     return this.updateAnnotation(annotation)
-      .then(() => {
+      .then((response) => {
+        if ('key' in response && response.key) {
+          return response.key;
+        }
         return getAnnotationId(annotation);
       })
       .catch(e => {
@@ -323,17 +326,16 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
       });
   }
 
-
   add(annotation: Annotation) {
     return this.addAnnotation(<ClioAnnotation>annotation);
   }
 
   update(id: AnnotationId, annotation: Annotation) {
     if (getAnnotationId(<ClioAnnotation>annotation) !== id) {
-      return this.updateAnnotation(<ClioAnnotation>annotation).then(() => this.delete(id));
-    } else {
-      return this.updateAnnotation(<ClioAnnotation>annotation);
+      (<ClioAnnotation>annotation).key = id; //TODO: may need a safer way to handle id difference
     }
+
+    return this.updateAnnotation(<ClioAnnotation>annotation);
   }
 
   private deleteAnnotation(id: AnnotationId) {

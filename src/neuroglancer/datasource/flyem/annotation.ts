@@ -20,6 +20,7 @@ export function WithFlyEMProp<TBase extends GConstructor<AnnotationBase>>(Base: 
   class C extends Base {
     kind?: string;
     source?: string;
+    key?: string;
     prop?: { [key: string]: any };
     ext?: { [key: string]: any};
     constructor(...args: any[]) {
@@ -205,11 +206,15 @@ export function typeOfAnnotationId(id: AnnotationId) {
 }
 
 export function getAnnotationId(annotation: FlyEMAnnotation) {
+  if (annotation.key) {
+    return annotation.key;
+  }
+
   switch (annotation.type) {
     case AnnotationType.POINT:
-      return `${annotation.point[0]}_${annotation.point[1]}_${annotation.point[2]}`;
+      return `Pt${annotation.point[0]}_${annotation.point[1]}_${annotation.point[2]}`;
     case AnnotationType.LINE:
-      return `${annotation.pointA[0]}_${annotation.pointA[1]}_${annotation.pointA[2]}--${annotation.pointB[0]}_${annotation.pointB[1]}_${annotation.pointB[2]}-Line`;
+      return `Ln${annotation.pointA[0]}_${annotation.pointA[1]}_${annotation.pointA[2]}_${annotation.pointB[0]}_${annotation.pointB[1]}_${annotation.pointB[2]}`;
   }
 }
 

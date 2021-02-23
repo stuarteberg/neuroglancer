@@ -200,27 +200,36 @@ export class V1PointAnnotationRequestHelper extends AnnotationRequestHelper<Clio
   }
 }
 
+function encodeAnnotationV2(annotation: ClioAnnotation) {
+  const annotationRef = new ClioAnnotationFacade(annotation);
+  if (!annotationRef.user) {
+    return null;
+  }
+
+  let obj: { [key: string]: any } = {
+    tags: []
+  };
+
+  obj.description = annotationRef.description;
+  obj.user = annotationRef.user;
+
+  if (annotationRef.title !== undefined) {
+    obj.title = annotationRef.title;
+  }
+
+  obj.prop = { ...annotation.prop };
+
+  return obj;
+}
+
 export class V2PointAnnotationRequestHelper extends AnnotationRequestHelper<ClioPointAnnotation> {
   defaultKind = 'Normal';
 
   encode(annotation: ClioPointAnnotation): { [key: string]: any } | null {
-    const annotationRef = new ClioAnnotationFacade(annotation);
-    if (!annotationRef.user) {
+    const obj = encodeAnnotationV2(annotation);
+    if (obj === null) {
       return null;
     }
-
-    let obj: { [key: string]: any } = {
-      tags: []
-    };
-
-    obj.description = annotationRef.description;
-    obj.user = annotationRef.user;
-
-    if (annotationRef.title !== undefined) {
-      obj.title = annotationRef.title;
-    }
-
-    obj.prop = { ...annotation.prop };
 
     obj.kind = 'point';
     obj.pos = [annotation.point[0], annotation.point[1], annotation.point[2]];
@@ -238,6 +247,7 @@ export class V2PointAnnotationRequestHelper extends AnnotationRequestHelper<Clio
 
       const annotation: ClioPointAnnotation = {
         id: key,
+        key,
         type: AnnotationType.POINT,
         kind: this.defaultKind,
         point,
@@ -256,23 +266,10 @@ export class V2PointAnnotationRequestHelper extends AnnotationRequestHelper<Clio
 
 export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioLineAnnotation> {
   encode(annotation: ClioLineAnnotation): { [key: string]: any } | null {
-    const annotationRef = new ClioAnnotationFacade(annotation);
-    if (!annotationRef.user) {
+    const obj = encodeAnnotationV2(annotation);
+    if (obj === null) {
       return null;
     }
-
-    let obj: { [key: string]: any } = {
-      tags: []
-    };
-
-    obj.description = annotationRef.description;
-    obj.user = annotationRef.user;
-
-    if (annotationRef.title !== undefined) {
-      obj.title = annotationRef.title;
-    }
-
-    obj.prop = { ...annotation.prop };
 
     obj.kind = 'lineseg';
     obj.pos = [annotation.pointA[0], annotation.pointA[1], annotation.pointA[2], annotation.pointB[0], annotation.pointB[1], annotation.pointB[2]];
@@ -290,6 +287,7 @@ export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioL
 
       const annotation: ClioLineAnnotation = {
         id: key,
+        key,
         type: AnnotationType.LINE,
         pointA: pos.slice(0, 3),
         pointB: pos.slice(3, 6),
@@ -415,27 +413,3 @@ export const defaultAtlasSchema = {
     }
   }
 };
-
-/*
-export const defaultAtlasSchema = {
-  "definitions": {},
-  "type": "object",
-  "required": [
-    "Title", "Description"
-  ],
-  "properties": {
-    "Title": {
-      "$id": "#/properties/Title",
-      "type": "string",
-      "title": "Title",
-      "default": ""
-    },
-    "Description": {
-      "$id": "#/properties/Description",
-      "type": "string",
-      "title": "Description",
-      "default": ""
-    }
-  }
-};
-*/

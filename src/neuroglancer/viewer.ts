@@ -336,6 +336,7 @@ export class Viewer extends RefCounted implements ViewerState {
   dataSourceProvider: Borrowed<DataSourceProviderRegistry>;
 
   uiConfiguration: ViewerUIConfiguration;
+  expectingExternalUI = true;
 
   private makeUiControlVisibilityState(key: keyof ViewerUIOptions) {
     const showUIControls = this.uiConfiguration.showUIControls;
@@ -569,8 +570,10 @@ export class Viewer extends RefCounted implements ViewerState {
       }
     };
     this.registerDisposer(this.selectedLayer.changed.add(sidePanelVisible.changed.dispatch));
-    this.registerDisposer(
+    if (!this.expectingExternalUI) {
+      this.registerDisposer(
         this.selectionDetailsState.changed.add(sidePanelVisible.changed.dispatch));
+    }
     this.registerDisposer(new DragResizablePanel(
         sidePanel, sidePanelVisible, this.selectedLayer.size, 'horizontal', 290));
     const layerInfoPanel =
