@@ -19,7 +19,6 @@
  */
 
 import {vec3} from 'neuroglancer/util/geom';
-// import {parseArray, parseFixedLengthArray, parseIntVec, parseFiniteVec, parseQueryStringParameters, verifyEnumString, verifyFinitePositiveFloat, verifyInt, verifyObject, verifyObjectProperty, verifyOptionalObjectProperty, verifyPositiveInt, verifyString} from 'neuroglancer/util/json';
 import {parseIntVec, parseFiniteVec, verifyObject, verifyObjectProperty, verifyOptionalObjectProperty, verifyPositiveInt} from 'neuroglancer/util/json';
 
 export class VolumeInfo {
@@ -44,14 +43,17 @@ export class VolumeInfo {
         this.lowerVoxelBound = verifyObjectProperty(extended, 'MinPoint', x => parseIntVec(vec3.create(), x));
       } else if (format === 'gs') { //gs info
         verifyObject(obj);
+        const scaleInfos = verifyObjectProperty(obj, 'scales', x => x);
+        if (scaleInfos.length === 0) throw new Error('Expected at least one scale');
+        const baseScale = scaleInfos[0];
         this.voxelSize = verifyObjectProperty(
-          obj, 'resolution',
+          baseScale, 'resolution',
           x => parseFiniteVec(vec3.create(), x));
         this.lowerVoxelBound = verifyOptionalObjectProperty(
-          obj, 'voxel_offset', x => parseIntVec(vec3.create(), x)) || vec3.fromValues(0, 0, 0);
+          baseScale, 'offset', x => parseIntVec(vec3.create(), x)) || vec3.fromValues(0, 0, 0);
         const boxSize = verifyObjectProperty(
-          obj, 'size', x => parseIntVec(vec3.create(), x));
-         this.upperVoxelBound = vec3.add(vec3.create(), boxSize, this.lowerVoxelBound);
+          baseScale, 'size', x => parseIntVec(vec3.create(), x));
+        this.upperVoxelBound = vec3.add(vec3.create(), boxSize, this.lowerVoxelBound);
       } else {
         throw new Error('unrecognized volume info');
       }
