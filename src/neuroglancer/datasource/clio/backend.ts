@@ -241,7 +241,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   private uploadable(annotation: Annotation|string){
     const encoder = this.getEncoder(annotation);
     if (encoder) {
-      return encoder.uploadable(annotation);
+      return encoder.uploadable(typeof annotation === 'string' ? encoder.decode(annotation, annotationStore.getValue(annotation)) : annotation);
     }
 
     return false;
@@ -316,9 +316,14 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   private addAnnotation(annotation: ClioAnnotation) {
     return this.updateAnnotation(annotation)
       .then((response) => {
+        if (typeof response === 'string' && response.length > 0) {
+          return response;
+        }
+
         if ('key' in response && response.key) {
           return response.key;
         }
+
         return getAnnotationId(annotation);
       })
       .catch(e => {
