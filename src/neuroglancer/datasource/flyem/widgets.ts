@@ -405,7 +405,7 @@ export function makeAnnotationEditWidget(reference: AnnotationReference, schema:
       annotationRef.setProp(x);
     }
 
-    annotationRef.updatePresentation();
+    annotationRef.update();
 
     source.update(reference, annotation);
     source.commit(reference);

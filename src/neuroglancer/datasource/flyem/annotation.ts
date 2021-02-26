@@ -67,6 +67,14 @@ export class AnnotationFacade {
   }
 
   get renderingAttribute() {
+    if (this.kind === 'Atlas') {
+      if (!this.title) {
+        return -1;
+      } else if (this.checked) {
+        return 1;
+      }
+    }
+
     return 0;
   }
 

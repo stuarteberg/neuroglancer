@@ -32,7 +32,7 @@ import {BoundingBox, makeCoordinateSpace, makeIdentityTransform, makeIdentityTra
 // import {parseArray, parseFixedLengthArray, parseQueryStringParameters, verifyEnumString, verifyFinitePositiveFloat, verifyInt, verifyObject, verifyObjectProperty, verifyOptionalObjectProperty, verifyPositiveInt, verifyString} from 'neuroglancer/util/json';
 import {parseQueryStringParameters, verifyObject, verifyObjectProperty, verifyString} from 'neuroglancer/util/json';
 import {CompleteUrlOptions, DataSource, DataSourceProvider, GetDataSourceOptions} from 'neuroglancer/datasource';
-import {getUserFromToken, AnnotationFacade} from 'neuroglancer/datasource/flyem/annotation';
+import {getUserFromToken} from 'neuroglancer/datasource/flyem/annotation';
 import {ClioAnnotationFacade, parseDescription} from 'neuroglancer/datasource/clio/utils';
 import {Borrowed} from 'neuroglancer/util/disposable';
 import {makeRequest} from 'neuroglancer/datasource/dvid/api';
@@ -299,7 +299,7 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
       throw Error(errorMessage);
     }
 
-    const clioAnnotation = new AnnotationFacade(annotation);
+    const clioAnnotation = new ClioAnnotationFacade(annotation);
     clioAnnotation.addTimeStamp();
     if (this.parameters.user) {
       clioAnnotation.user = this.parameters.user;
@@ -322,13 +322,10 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
   }
 
   update(reference: AnnotationReference, newAnnotation: Annotation) {
-    if (newAnnotation.type === AnnotationType.POINT) {
-      newAnnotation.point = newAnnotation.point.map(x => Math.round(x));
-    }
+    const annotationRef = new ClioAnnotationFacade(newAnnotation);
+    annotationRef.roundPos();
+    annotationRef.update();
 
-    // const annotationRef = new AnnotationFacade(newAnnotation);
-    // annotationRef.updateComment();
-    // annotationRef.update();
     super.update(reference, newAnnotation);
   }
 
