@@ -293,7 +293,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
         throw new Error('Unable to encode the annotation');
       }
       let value = JSON.stringify(encoded);
-      annotationStore.update(getAnnotationId(annotation), value);
+      annotationStore.update(getAnnotationId(annotation), encoded);
 
       if (this.uploadable(annotation)) {
         const clioInstance = new ClioInstance(parameters);
