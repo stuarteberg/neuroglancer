@@ -887,7 +887,7 @@ export class LayerSelectedValues extends RefCounted {
   get<T extends UserLayer>(userLayer: T): T['selectionState']|undefined {
     this.update();
     const {selectionState} = userLayer;
-    if (selectionState.generation !== this.changed.count) return undefined;
+    if (selectionState && selectionState.generation !== this.changed.count) return undefined;
     return selectionState;
   }
 
