@@ -29,6 +29,7 @@ export class ClioSourceParameters {
   api?: string
   kind?: string;
   user?: string;
+  groups?: string;
   grayscale?: string;
   authServer?: string;
   authToken?: string;

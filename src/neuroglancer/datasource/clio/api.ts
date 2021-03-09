@@ -78,7 +78,7 @@ export class ClioInstance {
     return `${this.getTopLevelUrl()}/${this.getAnnotationEndpoint()}/${this.parameters.dataset}`;
   }
   getAllAnnotationsUrl(): string {
-    return this.getAnnotationEntryUrl();
+    return this.getAnnotationEntryUrl() + (this.parameters.groups ? `?groups=${this.parameters.groups}` : '');
   }
 
   hasPointQueryApi(): Boolean {

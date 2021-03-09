@@ -56,7 +56,7 @@ export function makeRequestWithCredentials<TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
   httpCall: HttpCall & { responseType: XMLHttpRequestResponseType },
   cancellationToken: CancellationToken = uncancelableToken): Promise<any> {
-    return fetchWithDVIDCredentials(
+    return fetchWithFlyEMCredentials(
       credentialsProvider,
       httpCall.url,
       { method: httpCall.method, body: httpCall.payload },
@@ -80,7 +80,7 @@ function  applyCredentials<TToken>(input: string) {
   };
 }
 
-export function fetchWithDVIDCredentials<T, TToken>(
+function fetchWithFlyEMCredentials<T, TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
   input: string,
   init: RequestInit,
@@ -93,7 +93,9 @@ export function fetchWithDVIDCredentials<T, TToken>(
       const { status } = error;
       if (status === 403 || status === 401) {
         // Authorization needed.  Retry with refreshed token.
-        return 'refresh';
+        if ((<FlyEMCredentialsProvider<TToken>>credentialsProvider).refreshable) {
+          return 'refresh';
+        }
       }
       if (status === 504) {
         // Gateway timeout can occur if the server takes too long to reply.  Retry.

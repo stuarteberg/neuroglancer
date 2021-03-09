@@ -142,7 +142,7 @@ export function fetchWithDVIDCredentials<T>(
         const {status} = error;
         if (status === 403 || status === 401) {
           // Authorization needed.  Retry with refreshed token.
-          return 'refresh';
+          // return 'refresh';
         }
         if (status === 504) {
           // Gateway timeout can occur if the server takes too long to reply.  Retry.

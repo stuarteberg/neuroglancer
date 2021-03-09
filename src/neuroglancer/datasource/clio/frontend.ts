@@ -428,6 +428,10 @@ function parseSourceUrl(url: string): ClioSourceParameters {
     } else {
       sourceParameters.kind = 'Normal';
     }
+
+    if (parameters.groups) {
+      sourceParameters.groups = parameters.groups;
+    }
   }
 
   return sourceParameters;
