@@ -18,7 +18,7 @@
  * limitations under the License.
  */
 
-import {verifyObject, verifyObjectProperty, verifyString, parseIntVec} from 'neuroglancer/util/json';
+import {verifyObject, verifyObjectProperty, verifyString, verifyBoolean, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
 import {PointAnnotation, LineAnnotation, AnnotationFacade} from 'neuroglancer/datasource/flyem/annotation';
 import { AnnotationType } from 'neuroglancer/annotation';
@@ -50,6 +50,14 @@ export class ClioAnnotationFacade extends AnnotationFacade {
 
   set user(value: string) {
     this.ext.user = value;
+  }
+
+  get checked() {
+    return (this.ext && this.ext.verified);
+  }
+
+  set checked(c) {
+    this.ext.verified = c;
   }
 };
 
@@ -89,6 +97,10 @@ function decodeAnnotationPropV2(entry: {[key: string]: any}, out: ClioAnnotation
 
   if (entry.user) {
     annotationRef.user = verifyObjectProperty(entry, 'user', verifyString);
+  }
+
+  if ('verified' in entry) {
+    annotationRef.checked = verifyObjectProperty(entry, 'verified', verifyBoolean);
   }
 
   annotationRef.update();
@@ -212,6 +224,9 @@ function encodeAnnotationV2(annotation: ClioAnnotation) {
 
   obj.description = annotationRef.description;
   obj.user = annotationRef.user;
+  if (annotationRef.checked !== undefined) {
+    obj.verified = annotationRef.checked;
+  }
 
   if (annotationRef.title !== undefined) {
     obj.title = annotationRef.title;
