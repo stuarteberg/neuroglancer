@@ -24,13 +24,12 @@ import {registerSharedObject, SharedObject, RPC} from 'neuroglancer/worker_rpc';
 import {Uint64} from 'neuroglancer/util/uint64';
 import {Annotation, AnnotationId, AnnotationSerializer, AnnotationPropertySerializer, AnnotationType, /*Sphere, Line,*/ AnnotationPropertySpec} from 'neuroglancer/annotation';
 import {AnnotationGeometryChunk, AnnotationGeometryData, AnnotationMetadataChunk, AnnotationSource, AnnotationSubsetGeometryChunk, AnnotationGeometryChunkSourceBackend} from 'neuroglancer/annotation/backend';
-import {ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID} from 'neuroglancer/datasource/flyem/annotation';
 import {ChunkSourceParametersConstructor} from 'neuroglancer/chunk_manager/base';
 import {WithSharedCredentialsProviderCounterpart} from 'neuroglancer/credentials_provider/shared_counterpart';
 import {AnnotationSourceParameters, AnnotationChunkSourceParameters} from 'neuroglancer/datasource/clio/base';
 import {ClioToken, makeRequestWithCredentials, ClioInstance} from 'neuroglancer/datasource/clio/api';
 import {ClioAnnotationFacade, ClioPointAnnotation, ClioAnnotation, makeEncoders} from 'neuroglancer/datasource/clio/utils';
-import {getAnnotationId, typeOfAnnotationId, isAnnotationIdValid} from 'neuroglancer/datasource/flyem/annotation';
+import {ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID, getAnnotationKey, getAnnotationId, parseAnnotationId, typeOfAnnotationId, isAnnotationIdValid} from 'neuroglancer/datasource/flyem/annotation';
 
 
 class AnnotationStore {
@@ -115,7 +114,7 @@ function parseAnnotations(
           response['Kind'] = parameters.kind!;
         }
       }
-      parseSingleAnnotation(key, response, index, annotationCount - 1);
+      parseSingleAnnotation(response.key || key, response, index, annotationCount - 1);
     });
   }
   chunk.data = Object.assign(new AnnotationGeometryData(), serializer.serialize());
@@ -306,7 +305,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
             responseType: 'json',
           });
       } else {
-        return Promise.resolve(getAnnotationId(annotation));
+        return Promise.resolve(getAnnotationKey(annotation));
       }
     } catch (e) {
       return Promise.reject(e);
@@ -316,15 +315,14 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   private addAnnotation(annotation: ClioAnnotation) {
     return this.updateAnnotation(annotation)
       .then((response) => {
+        let key: string|undefined = undefined;
         if (typeof response === 'string' && response.length > 0) {
-          return response;
+          key = response;
+        } else {
+          key = response.key;
         }
 
-        if ('key' in response && response.key) {
-          return response.key;
-        }
-
-        return getAnnotationId(annotation);
+        return getAnnotationId(annotation, key);
       })
       .catch(e => {
         throw new Error(e);
@@ -337,7 +335,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
 
   update(id: AnnotationId, annotation: Annotation) {
     if (getAnnotationId(<ClioAnnotation>annotation) !== id) {
-      (<ClioAnnotation>annotation).key = id; //TODO: may need a safer way to handle id difference
+      delete (<ClioAnnotation>annotation).key; //TODO: may need a safer way to handle id difference
     }
 
     return this.updateAnnotation(<ClioAnnotation>annotation);
@@ -347,11 +345,13 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
     const clioInstance = new ClioInstance(this.parameters);
 
     if (this.uploadable(id)) {
+      const idInfo = parseAnnotationId(id);
+      const key = idInfo ? idInfo.key : id;
       return makeRequestWithCredentials(
         this.credentialsProvider,
         {
           method: 'DELETE',
-          url: clioInstance.getDeleteAnnotationUrl(id),
+          url: clioInstance.getDeleteAnnotationUrl(key),
           // url: getAnnotationUrl(parameters, id.split('_')),
           responseType: ''
         }).then(() => { annotationStore.remove(id); });

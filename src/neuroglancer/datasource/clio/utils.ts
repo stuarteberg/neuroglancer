@@ -20,7 +20,7 @@
 
 import {verifyObject, verifyObjectProperty, verifyString, verifyBoolean, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
-import {PointAnnotation, LineAnnotation, AnnotationFacade} from 'neuroglancer/datasource/flyem/annotation';
+import {PointAnnotation, LineAnnotation, AnnotationFacade, getAnnotationId} from 'neuroglancer/datasource/flyem/annotation';
 import { AnnotationType } from 'neuroglancer/annotation';
 
 export type ClioPointAnnotation = PointAnnotation;
@@ -104,6 +104,7 @@ function decodeAnnotationPropV2(entry: {[key: string]: any}, out: ClioAnnotation
   }
 
   annotationRef.update();
+  out.id = getAnnotationId(out);
 }
 
 export class V1PointAnnotationRequestHelper extends AnnotationRequestHelper<ClioPointAnnotation> {
@@ -261,7 +262,7 @@ export class V2PointAnnotationRequestHelper extends AnnotationRequestHelper<Clio
       const point = verifyObjectProperty(entry, 'pos', x => parseIntVec(new Float32Array(3), x));
 
       const annotation: ClioPointAnnotation = {
-        id: key,
+        id: '',
         key,
         type: AnnotationType.POINT,
         kind: this.defaultKind,
@@ -301,7 +302,7 @@ export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioL
       const pos = verifyObjectProperty(entry, 'pos', x => parseIntVec(new Float32Array(6), x));
 
       const annotation: ClioLineAnnotation = {
-        id: key,
+        id: '',
         key,
         type: AnnotationType.LINE,
         pointA: pos.slice(0, 3),
@@ -353,7 +354,7 @@ export function makeAnnotationRequestHelpers(
 }
 
 export function makeEncoders(api: string|undefined, kind: string|undefined) {
-  if (api === 'v2') {
+  if (api === 'v2' || api === 'v3') {
     if (kind === 'Atlas') {
       return makeAnnotationRequestHelpers({
         [AnnotationType.POINT]: new V2AtlasAnnotationRequestHelper(true)

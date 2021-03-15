@@ -203,7 +203,7 @@ export class AnnotationFacade {
 }
 
 export function typeOfAnnotationId(id: AnnotationId) {
-  if (id.match(/^-?\d+_-?\d+_-?\d+$/) || id.match(/^Pt-?\d+_-?\d+_-?\d+$/)) {
+  if (id.match(/^-?\d+_-?\d+_-?\d+[\[]?/) || id.match(/^Pt-?\d+_-?\d+_-?\d+/)) {
     return AnnotationType.POINT;
   } else if (id.match(/^-?\d+_-?\d+_-?\d+--?\d+_-?\d+_-?\d+-Line$/) || id.match(/^Ln-?\d+_-?\d+_-?\d+_?\d+_-?\d+_-?\d+/)) {
     return AnnotationType.LINE;
@@ -213,17 +213,35 @@ export function typeOfAnnotationId(id: AnnotationId) {
   }
 }
 
-export function getAnnotationId(annotation: FlyEMAnnotation) {
-  if (annotation.key) {
-    return annotation.key;
+function getAnnotationUser(annotation: FlyEMAnnotation) {
+  return (annotation.ext && annotation.ext.user) || (annotation.prop && annotation.prop.user);
+}
+
+export function getAnnotationKey(annotation: FlyEMAnnotation, keyHandle?: string) {
+  let key = keyHandle || annotation.key;
+
+  if (!key) {
+    switch (annotation.type) {
+      case AnnotationType.POINT:
+        key = `Pt${annotation.point[0]}_${annotation.point[1]}_${annotation.point[2]}`;
+        break;
+      case AnnotationType.LINE:
+        key = `Ln${annotation.pointA[0]}_${annotation.pointA[1]}_${annotation.pointA[2]}_${annotation.pointB[0]}_${annotation.pointB[1]}_${annotation.pointB[2]}`;
+        break;
+    }
   }
 
-  switch (annotation.type) {
-    case AnnotationType.POINT:
-      return `Pt${annotation.point[0]}_${annotation.point[1]}_${annotation.point[2]}`;
-    case AnnotationType.LINE:
-      return `Ln${annotation.pointA[0]}_${annotation.pointA[1]}_${annotation.pointA[2]}_${annotation.pointB[0]}_${annotation.pointB[1]}_${annotation.pointB[2]}`;
-  }
+  return key;
+}
+
+export function getAnnotationId(annotation: FlyEMAnnotation, keyHandle?: string) {
+  return `${getAnnotationKey(annotation, keyHandle)}[user:${getAnnotationUser(annotation)}]`;
+}
+
+export function parseAnnotationId(id: string) {
+  const matched = id.match(/(.*)\[user:(.*)\]/);
+
+  return matched && {key: matched[1], user: matched[2] };
 }
 
 export function isAnnotationIdValid(id: AnnotationId) {

@@ -82,7 +82,7 @@ export class ClioInstance {
   }
 
   hasPointQueryApi(): Boolean {
-    return (this.parameters.api !== 'v2' || this.parameters.kind === 'Atlas');
+    return (this.parameters.api === 'clio_toplevel' || this.parameters.kind === 'Atlas');
   }
 
   getPostAnnotationUrl(position: ArrayLike<number|string>): string {
