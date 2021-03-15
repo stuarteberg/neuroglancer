@@ -279,7 +279,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
     return null;
   }
 
-  private updateAnnotation(annotation: ClioAnnotation) {
+  private updateAnnotation(annotation: ClioAnnotation, overwrite: Boolean) {
     try {
       const { parameters } = this;
       if (!parameters.user) {
@@ -291,6 +291,11 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
       if (encoded === null) {
         throw new Error('Unable to encode the annotation');
       }
+
+      if (!overwrite && annotationStore.getValue(getAnnotationId(annotation))) {
+        throw new Error('Cannot overwrite existing annotation');
+      }
+
       let value = JSON.stringify(encoded);
       annotationStore.update(getAnnotationId(annotation), encoded);
 
@@ -313,7 +318,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   }
 
   private addAnnotation(annotation: ClioAnnotation) {
-    return this.updateAnnotation(annotation)
+    return this.updateAnnotation(annotation, false)
       .then((response) => {
         let key: string|undefined = undefined;
         if (typeof response === 'string' && response.length > 0) {
@@ -338,13 +343,21 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
       delete (<ClioAnnotation>annotation).key; //TODO: may need a safer way to handle id difference
     }
 
-    return this.updateAnnotation(<ClioAnnotation>annotation);
+    return this.updateAnnotation(<ClioAnnotation>annotation, true);
   }
 
   private deleteAnnotation(id: AnnotationId) {
     const clioInstance = new ClioInstance(this.parameters);
 
     if (this.uploadable(id)) {
+      const cachedAnnotation = annotationStore.getValue(id);
+      if (cachedAnnotation) {
+        const { user } = cachedAnnotation;
+        if (user && (user !== this.parameters.user)) {
+          throw new Error(`Unable to delete annotation owned by ${user}.`)
+        }
+      }
+
       const idInfo = parseAnnotationId(id);
       const key = idInfo ? idInfo.key : id;
       return makeRequestWithCredentials(
