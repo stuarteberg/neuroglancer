@@ -112,4 +112,3 @@ export class ClioInstance {
 export function responseText(response: Response): Promise<any> {
   return response.text();
 }
-

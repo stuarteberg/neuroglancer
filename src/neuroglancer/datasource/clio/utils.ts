@@ -354,7 +354,7 @@ export function makeAnnotationRequestHelpers(
 }
 
 export function makeEncoders(api: string|undefined, kind: string|undefined) {
-  if (api === 'v2' || api === 'v3') {
+  if (api === 'v2' || api === 'v3' || api === 'test') {
     if (kind === 'Atlas') {
       return makeAnnotationRequestHelpers({
         [AnnotationType.POINT]: new V2AtlasAnnotationRequestHelper(true)

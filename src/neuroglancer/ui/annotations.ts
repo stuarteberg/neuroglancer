@@ -894,7 +894,7 @@ export class PlacePointTool extends PlaceAnnotationTool {
         if (!this.sourceSignalUpdated) {
           annotationLayer.source.childAdded.add(
             (annotation: Annotation) => {
-              console.log('Annotation updated');
+              // console.log('Annotation updated');
               this.layer.selectAnnotation(annotationLayer, annotation.id, true);
             }
           );
