@@ -30,7 +30,7 @@ import {Buffer} from 'neuroglancer/webgl/buffer';
 import {GL} from 'neuroglancer/webgl/context';
 import {registerRPC, registerSharedObjectOwner, RPC, SharedObject} from 'neuroglancer/worker_rpc';
 
-const DEBUG = true;
+const DEBUG = false;
 
 export interface AnnotationGeometryChunkSourceOptions extends SliceViewChunkSourceOptions {
   spec: AnnotationGeometryChunkSpecification;
@@ -376,6 +376,11 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       segmentFilteredSources.push(
           this.registerDisposer(new AnnotationSubsetGeometryChunkSource(chunkManager, this, i)));
     }
+    if (DEBUG) {
+      this.referencesChanged.add((source: {action: string, id?: string}) => {
+        console.log('annotation references changed:', source);
+      });
+    }
   }
 
   getSources(_options: SliceViewSourceOptions):
@@ -405,8 +410,10 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     const reference = new AnnotationReference(annotation.id);
     reference.value = annotation;
     this.references.set(reference.id, reference);
+    this.referencesChanged.dispatch({action: 'adding', id: reference.id});
     reference.registerDisposer(() => {
       this.references.delete(reference.id);
+      this.referencesChanged.dispatch({action: 'deref', id: reference.id});
     });
     this.applyLocalUpdate(
         reference, /*existing=*/ false, /*commit=*/ commit, /*newAnnotation=*/ annotation);
@@ -498,6 +505,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     if (reference !== undefined) {
       reference.value = annotation || null;
       reference.changed.dispatch();
+      this.referencesChanged.dispatch({action: 'changed', id});
     }
     this.chunkManager.chunkQueueManager.visibleChunksChanged.dispatch();
   }
@@ -517,8 +525,10 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       let reference = new AnnotationReference(annotation.id);
       this.references.set(annotation.id, reference);
       reference.value = annotation;
+      this.referencesChanged.dispatch({action: 'update', id: reference.id});
       reference.registerDisposer(() => {
         this.references.delete(reference.id);
+        this.referencesChanged.dispatch({action: 'deref', id: reference.id});
       });
     }
   }
@@ -534,10 +544,12 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     }
     existing = new AnnotationReference(id);
     this.references.set(id, existing);
+    this.referencesChanged.dispatch({'action': 'get', id});
     // existing.addRef(); //Looks like it is necessary
     this.rpc!.invoke(ANNOTATION_REFERENCE_ADD_RPC_ID, {id: this.rpcId, annotation: id});
     existing.registerDisposer(() => {
       this.references.delete(id);
+      this.referencesChanged.dispatch({'action': 'deref', id});
       this.rpc!.invoke(ANNOTATION_REFERENCE_DELETE_RPC_ID, {id: this.rpcId, annotation: id});
     });
     const chunk = this.metadataChunkSource.chunks.get(id);
@@ -674,11 +686,14 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       this.revertLocalUpdate(localUpdate);
       if (added) {
         this.childAdded.dispatch(newAnnotation!);
+        this.referencesChanged.dispatch({action: 'added', id: newAnnotation!.id});
       } else if (newAnnotation === null) {
         this.references.get(id)!.dispose();
         this.childDeleted.dispatch(id);
+        this.referencesChanged.dispatch({action: 'deleted', id});
       } else {
         this.childUpdated.dispatch(newAnnotation);
+        this.referencesChanged.dispatch({action: 'updated', id: newAnnotation.id});
       }
     }
   }
@@ -747,6 +762,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
 
   // FIXME
   changed = new NullarySignal();
+  referencesChanged = new Signal<(source: {action: string, id?: string}) => void>();
   * [Symbol.iterator](): Iterator<Annotation> {}
   readonly = false;
   childAdded: Signal<(annotation: Annotation) => void>;
