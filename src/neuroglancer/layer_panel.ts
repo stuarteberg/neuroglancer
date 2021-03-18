@@ -28,9 +28,10 @@ import {animationFrameDebounce} from 'neuroglancer/util/animation_frame_debounce
 import {Owned, RefCounted, registerEventListener} from 'neuroglancer/util/disposable';
 import {removeFromParent} from 'neuroglancer/util/dom';
 import {getDropEffect, preventDrag, setDropEffect} from 'neuroglancer/util/drag_and_drop';
-import {makeCloseButton} from 'neuroglancer/widget/close_button';
+import {makeCloseButton, makeRefreshButton} from 'neuroglancer/widget/close_button';
 import {makeIcon} from 'neuroglancer/widget/icon';
 import {PositionWidget} from 'neuroglancer/widget/position_widget';
+import {LoadedLayerDataSource} from 'neuroglancer/layer_data_source';
 
 function destroyDropLayers(dropLayers: DropLayers, targetLayer?: ManagedUserLayer) {
   if (dropLayers.method === 'move') {
@@ -188,6 +189,24 @@ class LayerWidget extends RefCounted {
     valueElement.className = 'neuroglancer-layer-item-value';
     const closeElement = makeCloseButton();
     closeElement.title = 'Remove layer from this layer group';
+    const refreshElement = makeRefreshButton();
+    refreshElement.title = 'Refresh data';
+    this.registerEventListener(refreshElement, 'click', (event: MouseEvent) => {
+      event.stopPropagation();
+      const layer = this.layer.layer;
+      if (layer && layer.dataSources && layer.dataSources[0].loadState) {
+        const { loadState } = layer.dataSources[0];
+        if (loadState instanceof LoadedLayerDataSource) {
+          const { dataSource } = loadState;
+          if (dataSource && dataSource.subsources[0] && dataSource.subsources[0].subsource) {
+            const { annotation } = dataSource.subsources[0].subsource;
+            if (annotation?.invalidateCache) {
+              annotation.invalidateCache();
+            }
+          }
+        }
+      }
+    });
     this.registerEventListener(closeElement, 'click', (event: MouseEvent) => {
       this.panel.layerManager.removeManagedLayer(this.layer);
       event.stopPropagation();
@@ -204,6 +223,9 @@ class LayerWidget extends RefCounted {
     positionWidget.element.addEventListener('dblclick', (event: MouseEvent) => {
       event.stopPropagation();
     });
+    if (layer.layer?.allowingRefresh) {
+      element.appendChild(refreshElement);
+    }
     element.appendChild(closeElement);
     this.registerEventListener(element, 'click', (event: MouseEvent) => {
       if (event.ctrlKey) {

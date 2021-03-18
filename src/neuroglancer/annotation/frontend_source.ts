@@ -357,6 +357,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
   readonly properties: Readonly<AnnotationPropertySpec>[];
   readonly annotationPropertySerializer: AnnotationPropertySerializer;
   getUser?(): string|undefined;
+  invalidateCache?(): void;
   makeEditWidget: (reference: AnnotationReference) => HTMLElement|null;
   constructor(public chunkManager: Borrowed<ChunkManager>, options: {
     rank: number,
@@ -768,6 +769,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
   childAdded: Signal<(annotation: Annotation) => void>;
   childUpdated: Signal<(annotation: Annotation) => void>;
   childDeleted: Signal<(annotationId: string) => void>;
+  childRefreshed = new NullarySignal();
 }
 
 registerRPC(ANNOTATION_COMMIT_UPDATE_RESULT_RPC_ID, function(x) {

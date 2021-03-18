@@ -330,6 +330,8 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
   }
 
   invalidateCache() {
+    this.references.clear();
+    this.childRefreshed.dispatch();
     this.metadataChunkSource.invalidateCache();
     for (let sources1 of this.getSources({
       multiscaleToViewTransform: new Float32Array(),

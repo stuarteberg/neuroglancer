@@ -15,8 +15,13 @@
  */
 
 import svg_close from 'ikonate/icons/close.svg';
+import svg_refresh from 'ikonate/icons/refresh.svg';
 import {makeIcon, MakeIconOptions} from 'neuroglancer/widget/icon';
 
 export function makeCloseButton(options: MakeIconOptions = {}) {
   return makeIcon({svg: svg_close, ...options});
+}
+
+export function makeRefreshButton(options: MakeIconOptions = {}) {
+  return makeIcon({svg: svg_refresh, ...options});
 }

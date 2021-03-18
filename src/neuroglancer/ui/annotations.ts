@@ -278,6 +278,8 @@ export class AnnotationLayerView extends Tab {
             (annotation) => this.updateAnnotationElement(annotation, state)));
         refCounted.registerDisposer(source.childDeleted.add(
             (annotationId) => this.deleteAnnotationElement(annotationId, state)));
+        refCounted.registerDisposer(source.childRefreshed.add(
+          () => this.clearAnnotationElement(state)));
       }
       refCounted.registerDisposer(state.transform.changed.add(this.forceUpdateView));
       newAttachedAnnotationStates.set(
@@ -623,6 +625,28 @@ export class AnnotationLayerView extends Tab {
       length += info.annotations.length;
     }
     this.virtualListSource.length = length;
+  }
+
+  private clearAnnotationElement(state: AnnotationLayerState) {
+    if (!this.visible) {
+      this.updated = false;
+      return;
+    }
+    if (!this.updated) {
+      this.updateView();
+      return;
+    }
+    const info = this.attachedAnnotationStates.get(state);
+    if (info !== undefined) {
+      const index = info.annotations.length;
+      info.annotations = [];
+      info.idToIndex.clear();
+      this.listElements = [];
+      this.updateListLength();
+      this.virtualListSource.changed!.dispatch(
+          [{retainCount: 0, deleteCount: index, insertCount: 0}]);
+    }
+    this.resetOnUpdate();
   }
 
   private addAnnotationElement(annotation: Annotation, state: AnnotationLayerState) {

@@ -26,14 +26,19 @@ import {Annotation, AnnotationId, AnnotationSerializer, AnnotationPropertySerial
 import {AnnotationGeometryChunk, AnnotationGeometryData, AnnotationMetadataChunk, AnnotationSource, AnnotationSubsetGeometryChunk, AnnotationGeometryChunkSourceBackend} from 'neuroglancer/annotation/backend';
 import {ChunkSourceParametersConstructor} from 'neuroglancer/chunk_manager/base';
 import {WithSharedCredentialsProviderCounterpart} from 'neuroglancer/credentials_provider/shared_counterpart';
-import {AnnotationSourceParameters, AnnotationChunkSourceParameters} from 'neuroglancer/datasource/clio/base';
+import {ClioSourceParameters, AnnotationSourceParameters, AnnotationChunkSourceParameters} from 'neuroglancer/datasource/clio/base';
 import {ClioToken, makeRequestWithCredentials, ClioInstance} from 'neuroglancer/datasource/clio/api';
 import {ClioAnnotationFacade, ClioPointAnnotation, ClioAnnotation, makeEncoders} from 'neuroglancer/datasource/clio/utils';
 import {ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID, getAnnotationKey, getAnnotationId, parseAnnotationId, typeOfAnnotationId, isAnnotationIdValid} from 'neuroglancer/datasource/flyem/annotation';
+import {StringMemoize} from 'neuroglancer/util/memoize';
+import {RefCounted} from 'neuroglancer/util/disposable';
 
-
-class AnnotationStore {
+class AnnotationStore extends RefCounted {
   store = new Map();
+
+  clear() {
+    this.store.clear();
+  }
 
   add(id: string, value: any) {
     if (id) {
@@ -54,7 +59,16 @@ class AnnotationStore {
   }
 }
 
-let annotationStore = new AnnotationStore;
+let memoize = new StringMemoize();
+
+function getAnnotationStore(parameters: ClioSourceParameters) {
+  const instance = new ClioInstance(parameters);
+  return memoize.get(instance.getAllAnnotationsUrl(), () => {
+    return new AnnotationStore();
+  });
+}
+
+// let annotationStore = new AnnotationStore;
 
 function ClioSource<Parameters, TBase extends {new (...args: any[]): SharedObject}>(
   Base: TBase, parametersConstructor: ChunkSourceParametersConstructor<Parameters>) {
@@ -90,7 +104,7 @@ function parseAnnotations(
             } else {
               annotation.source = `downloaded:${index}/${lastIndex}`;
             }
-            annotationStore.add(getAnnotationId(annotation), response);
+            getAnnotationStore(source.parameters).add(getAnnotationId(annotation), response);
             serializer.add(annotation);
             if (emittingAddSignal) {
               source.rpc!.invoke(ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID, {
@@ -160,6 +174,8 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   async download(chunk: AnnotationGeometryChunk, cancellationToken: CancellationToken) {
     // let values: any[] = [];
     try {
+      getAnnotationStore(this.parameters).clear();
+
       const clioInstance = new ClioInstance(this.parameters);
       let pointAnnotationValues = await makeRequestWithCredentials(
         this.credentialsProvider,
@@ -187,11 +203,11 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   }
 
   private requestLineMetaData(id: AnnotationId, _: CancellationToken) {
-    return Promise.resolve(annotationStore.getValue(id));
+    return Promise.resolve(getAnnotationStore(this.parameters).getValue(id));
   }
 
   private requestPointMetaData(id: AnnotationId, _: CancellationToken) {
-    return Promise.resolve(annotationStore.getValue(id));
+    return Promise.resolve(getAnnotationStore(this.parameters).getValue(id));
     /*
     const { parameters } = this;
     return makeRequestWithCredentials(
@@ -240,7 +256,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   private uploadable(annotation: Annotation|string){
     const encoder = this.getEncoder(annotation);
     if (encoder) {
-      return encoder.uploadable(typeof annotation === 'string' ? encoder.decode(annotation, annotationStore.getValue(annotation)) : annotation);
+      return encoder.uploadable(typeof annotation === 'string' ? encoder.decode(annotation, getAnnotationStore(this.parameters).getValue(annotation)) : annotation);
     }
 
     return false;
@@ -292,12 +308,12 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
         throw new Error('Unable to encode the annotation');
       }
 
-      if (!overwrite && annotationStore.getValue(getAnnotationId(annotation))) {
+      if (!overwrite && getAnnotationStore(this.parameters).getValue(getAnnotationId(annotation))) {
         throw new Error('Cannot overwrite existing annotation');
       }
 
       let value = JSON.stringify(encoded);
-      annotationStore.update(getAnnotationId(annotation), encoded);
+      getAnnotationStore(this.parameters).update(getAnnotationId(annotation), encoded);
 
       if (this.uploadable(annotation)) {
         const clioInstance = new ClioInstance(parameters);
@@ -350,7 +366,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
     const clioInstance = new ClioInstance(this.parameters);
 
     if (this.uploadable(id)) {
-      const cachedAnnotation = annotationStore.getValue(id);
+      const cachedAnnotation = getAnnotationStore(this.parameters).getValue(id);
       if (cachedAnnotation) {
         const { user } = cachedAnnotation;
         if (user && (user !== this.parameters.user)) {
@@ -367,9 +383,9 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
           url: clioInstance.getDeleteAnnotationUrl(key),
           // url: getAnnotationUrl(parameters, id.split('_')),
           responseType: ''
-        }).then(() => { annotationStore.remove(id); });
+        }).then(() => { getAnnotationStore(this.parameters).remove(id); });
     } else {
-      annotationStore.remove(id);
+      getAnnotationStore(this.parameters).remove(id);
       return Promise.resolve();
     }
   }

@@ -223,6 +223,7 @@ export class UserLayer extends RefCounted {
 
   dataSourcesChanged = new NullarySignal();
   dataSources: LayerDataSource[] = [];
+  allowingRefresh = false;
 
   get manager() {
     return this.managedLayer.manager;
