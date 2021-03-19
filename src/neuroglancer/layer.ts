@@ -1065,10 +1065,10 @@ export class TrackableDataSelectionState extends RefCounted implements
     }
     verifyObject(obj);
     const coordinateSpace = this.coordinateSpace.value;
-    const position = verifyOptionalObjectProperty(
-        obj, 'position',
-        positionObj => parseFixedLengthArray(
-            new Float32Array(coordinateSpace.rank), positionObj, verifyFiniteFloat));
+    const position = coordinateSpace.rank > 0 ? verifyOptionalObjectProperty(
+      obj, 'position',
+      positionObj => parseFixedLengthArray(
+        new Float32Array(coordinateSpace.rank), positionObj, verifyFiniteFloat)) : undefined;
     const layers: PersistentLayerSelectionState[] = [];
     verifyOptionalObjectProperty(obj, 'layers', layersObj => {
       verifyObject(layersObj);
