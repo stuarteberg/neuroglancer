@@ -61,6 +61,7 @@ import {makeIcon} from 'neuroglancer/widget/icon';
 import {makeMoveToButton} from 'neuroglancer/widget/move_to_button';
 import {Tab} from 'neuroglancer/widget/tab_view';
 import {VirtualList, VirtualListSource} from 'neuroglancer/widget/virtual_list';
+import {FlyEMAnnotation} from '../datasource/flyem/annotation';
 
 export class MergedAnnotationStates extends RefCounted implements
     WatchableValueInterface<readonly AnnotationLayerState[]> {
@@ -919,7 +920,9 @@ export class PlacePointTool extends PlaceAnnotationTool {
           annotationLayer.source.childAdded.add(
             (annotation: Annotation) => {
               // console.log('Annotation updated');
-              this.layer.selectAnnotation(annotationLayer, annotation.id, true);
+              if ((<FlyEMAnnotation>annotation).source === undefined) {
+                this.layer.selectAnnotation(annotationLayer, annotation.id, true);
+              }
             }
           );
           this.sourceSignalUpdated = true;

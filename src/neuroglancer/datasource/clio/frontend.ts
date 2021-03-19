@@ -330,6 +330,9 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
   }
 
   invalidateCache() {
+    this.references.forEach((ref) => {
+      ref.dispose();
+    });
     this.references.clear();
     this.childRefreshed.dispatch();
     this.metadataChunkSource.invalidateCache();
