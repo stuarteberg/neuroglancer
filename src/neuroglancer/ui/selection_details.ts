@@ -171,4 +171,10 @@ export class SelectionDetailsTab extends RefCounted {
               }
             })).element);
   }
+
+  close() {
+    this.state.visible.value = false;
+    this.state.value = undefined;
+    this.state.pin.value = true;
+  }
 }

@@ -165,6 +165,7 @@ export class FlyEMCredentialsProvider<Token> extends CredentialsProvider<Token> 
     } else if (authServer.startsWith('token:')) {
       return Promise.resolve(authServer.substring(6));
     } else if (authServer == 'neurohub') {
+      this.refreshable = true;
       return getNeurohubToken(DEBUG_NEUROHUB_CREDENTIALS ? mockWindow : window);
     } else {
       this.refreshable = true;

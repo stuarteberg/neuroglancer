@@ -359,6 +359,7 @@ export class Viewer extends RefCounted implements ViewerState {
   }
 
   visible = true;
+  closeSelectionTab?: () => void;
 
   constructor(public display: DisplayContext, options: Partial<ViewerOptions> = {}) {
     super();
@@ -587,6 +588,9 @@ export class Viewer extends RefCounted implements ViewerState {
     sidePanel.appendChild(layerInfoPanel.element);
     const selectionDetailsTab = this.registerDisposer(new SelectionDetailsTab(
         this.selectionDetailsState, this.layerSpecification, this.selectedLayer));
+    this.closeSelectionTab = () => {
+      selectionDetailsTab.close();
+    };
     sidePanel.appendChild(selectionDetailsTab.element);
     this.registerDisposer(new ElementVisibilityFromTrackableBoolean(
         this.selectionDetailsState.visible, selectionDetailsTab.element));

@@ -554,7 +554,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       this.rpc!.invoke(ANNOTATION_REFERENCE_DELETE_RPC_ID, {id: this.rpcId, annotation: id});
     });
     const chunk = this.metadataChunkSource.chunks.get(id);
-    if (chunk !== undefined) {
+    if (chunk !== undefined && chunk.annotation !== null) {
       existing.value = chunk.annotation;
     }
     return existing;
