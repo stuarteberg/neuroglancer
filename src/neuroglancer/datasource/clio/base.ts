@@ -35,6 +35,10 @@ export class ClioSourceParameters {
   authToken?: string;
 }
 
+export function isAuthRefreshable(parameters: {authServer?: string}) {
+  return parameters.authServer ? (parameters.authServer === 'neurohub' || parameters.authServer.startsWith('http')) : false;
+}
+
 export class AnnotationSourceParametersBase extends ClioSourceParameters {
   chunkDataSize = annotationChunkDataSize;
   properties: AnnotationPropertySpec[];

@@ -26,7 +26,7 @@ import {Annotation, AnnotationId, AnnotationSerializer, AnnotationPropertySerial
 import {AnnotationGeometryChunk, AnnotationGeometryData, AnnotationMetadataChunk, AnnotationSource, AnnotationSubsetGeometryChunk, AnnotationGeometryChunkSourceBackend} from 'neuroglancer/annotation/backend';
 import {ChunkSourceParametersConstructor} from 'neuroglancer/chunk_manager/base';
 import {WithSharedCredentialsProviderCounterpart} from 'neuroglancer/credentials_provider/shared_counterpart';
-import {ClioSourceParameters, AnnotationSourceParameters, AnnotationChunkSourceParameters} from 'neuroglancer/datasource/clio/base';
+import {ClioSourceParameters, AnnotationSourceParameters, AnnotationChunkSourceParameters, isAuthRefreshable} from 'neuroglancer/datasource/clio/base';
 import {ClioToken, makeRequestWithCredentials, ClioInstance} from 'neuroglancer/datasource/clio/api';
 import {ClioAnnotationFacade, ClioPointAnnotation, ClioAnnotation, makeEncoders} from 'neuroglancer/datasource/clio/utils';
 import {ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID, getAnnotationKey, getAnnotationId, parseAnnotationId, typeOfAnnotationId, isAnnotationIdValid} from 'neuroglancer/datasource/flyem/annotation';
@@ -179,6 +179,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
       const clioInstance = new ClioInstance(this.parameters);
       let pointAnnotationValues = await makeRequestWithCredentials(
         this.credentialsProvider,
+        isAuthRefreshable(this.parameters),
         {
           method: 'GET',
           url: clioInstance.getAllAnnotationsUrl(),
@@ -319,6 +320,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
         const clioInstance = new ClioInstance(parameters);
         return makeRequestWithCredentials(
           this.credentialsProvider,
+          isAuthRefreshable(parameters),
           {
             method: 'POST',
             url: clioInstance.getPostAnnotationUrl((<ClioPointAnnotation>annotation).point),
@@ -378,6 +380,7 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
       const key = idInfo ? idInfo.key : id;
       return makeRequestWithCredentials(
         this.credentialsProvider,
+        isAuthRefreshable(this.parameters),
         {
           method: 'DELETE',
           url: clioInstance.getDeleteAnnotationUrl(key),

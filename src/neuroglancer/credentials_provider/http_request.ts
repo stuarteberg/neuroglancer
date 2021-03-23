@@ -25,6 +25,8 @@ export async function fetchWithCredentials<Credentials, T>(
     errorHandler: (httpError: HttpError, credentials: Credentials) => 'refresh' | 'retry',
     cancellationToken: CancellationToken = uncancelableToken): Promise<T> {
   let credentials: CredentialsWithGeneration<Credentials>|undefined;
+  let refreshCount = 0;
+  const maxRefreshCount = 10;
   credentialsLoop: while (true) {
     credentials = await credentialsProvider.get(credentials, cancellationToken);
     requestLoop: while (true) {
@@ -34,8 +36,14 @@ export async function fetchWithCredentials<Credentials, T>(
             cancellationToken);
       } catch (error) {
         if (error instanceof HttpError) {
-          if (errorHandler(error, credentials.credentials) === 'refresh') continue credentialsLoop;
-          continue requestLoop;
+          if (errorHandler(error, credentials.credentials) === 'refresh') {
+            refreshCount++;
+            if (refreshCount <= maxRefreshCount) {
+              continue credentialsLoop;
+            }
+          } else {
+            continue requestLoop;
+          }
         }
         throw error;
       }

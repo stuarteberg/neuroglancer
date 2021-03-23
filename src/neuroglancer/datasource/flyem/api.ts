@@ -1,7 +1,7 @@
 import {CANCELED, CancellationTokenSource, CancellationToken, uncancelableToken} from 'neuroglancer/util/cancellation';
 import {responseJson, cancellableFetchOk, responseArrayBuffer, ResponseTransform} from 'neuroglancer/util/http_request';
 import {fetchWithCredentials} from 'neuroglancer/credentials_provider/http_request';
-import {CredentialsProvider, makeCredentialsGetter} from 'neuroglancer/credentials_provider';
+import {CredentialsProvider, /*makeUncachedCredentialsGetter as */makeCredentialsGetter} from 'neuroglancer/credentials_provider';
 import {StatusMessage} from 'neuroglancer/status';
 
 export type DefaultTokenType = string;
@@ -41,23 +41,28 @@ export function makeRequest(
 
 export function makeRequestWithCredentials<TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
+  tokenRefreshable: Boolean,
   httpCall: HttpCall & { responseType: 'arraybuffer' },
   cancellationToken?: CancellationToken): Promise<ArrayBuffer>;
 
 export function makeRequestWithCredentials<TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
+  tokenRefreshable: Boolean,
   httpCall: HttpCall & { responseType: 'json' }, cancellationToken?: CancellationToken): Promise<any>;
 
 export function makeRequestWithCredentials<TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
+  tokenRefreshable: Boolean,
   httpCall: HttpCall & { responseType: '' }, cancellationToken?: CancellationToken): Promise<any>;
 
 export function makeRequestWithCredentials<TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
+  tokenRefreshable: Boolean,
   httpCall: HttpCall & { responseType: XMLHttpRequestResponseType },
   cancellationToken: CancellationToken = uncancelableToken): Promise<any> {
     return fetchWithFlyEMCredentials(
       credentialsProvider,
+      tokenRefreshable,
       httpCall.url,
       { method: httpCall.method, body: httpCall.payload },
       httpCall.responseType === '' ? responseText : (httpCall.responseType === 'json' ? responseJson : responseArrayBuffer),
@@ -82,6 +87,7 @@ function  applyCredentials<TToken>(input: string) {
 
 function fetchWithFlyEMCredentials<T, TToken>(
   credentialsProvider: CredentialsProvider<TToken>,
+  tokenRefreshable: Boolean,
   input: string,
   init: RequestInit,
   transformResponse: ResponseTransform<T>,
@@ -93,7 +99,7 @@ function fetchWithFlyEMCredentials<T, TToken>(
       const { status } = error;
       if (status === 403 || status === 401) {
         // Authorization needed.  Retry with refreshed token.
-        if ((<FlyEMCredentialsProvider<TToken>>credentialsProvider).refreshable) {
+        if (tokenRefreshable) {
           return 'refresh';
         }
       }
@@ -149,7 +155,6 @@ function getNeurohubToken(w: any) {
 }
 
 export class FlyEMCredentialsProvider<Token> extends CredentialsProvider<Token> {
-  refreshable = false;
   constructor(public authServer: string, private retry?: () => void) {
     super();
   }
@@ -157,7 +162,6 @@ export class FlyEMCredentialsProvider<Token> extends CredentialsProvider<Token> 
   private getAuthToken(
     authServer: string,
     cancellationToken = uncancelableToken) {
-    this.refreshable = false;
     // console.log('getAuthToken:', authServer);
     if (!authServer) {
       // throw Error('token failure test');
@@ -165,10 +169,8 @@ export class FlyEMCredentialsProvider<Token> extends CredentialsProvider<Token> 
     } else if (authServer.startsWith('token:')) {
       return Promise.resolve(authServer.substring(6));
     } else if (authServer == 'neurohub') {
-      this.refreshable = true;
       return getNeurohubToken(DEBUG_NEUROHUB_CREDENTIALS ? mockWindow : window);
     } else {
-      this.refreshable = true;
       const headers = new Headers();
       // headers.set('Access-Control-Allow-Origin', '*');
       return cancellableFetchOk(

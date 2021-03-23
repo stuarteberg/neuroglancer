@@ -43,7 +43,7 @@ import {VolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {makeAnnotationEditWidget} from 'neuroglancer/datasource/flyem/widgets';
 import {defaultAnnotationSchema, defaultAtlasSchema} from 'neuroglancer/datasource/clio/utils';
 import {ClioToken, credentialsKey, makeRequestWithCredentials, getGrayscaleInfoUrl, ClioInstance} from 'neuroglancer/datasource/clio/api';
-import {AnnotationSourceParameters, AnnotationChunkSourceParameters, ClioSourceParameters} from 'neuroglancer/datasource/clio/base';
+import {AnnotationSourceParameters, AnnotationChunkSourceParameters, ClioSourceParameters, isAuthRefreshable} from 'neuroglancer/datasource/clio/base';
 
 class ClioAnnotationChunkSource extends
 (WithParameters(WithCredentialsProvider<ClioToken>()(AnnotationGeometryChunkSource), AnnotationChunkSourceParameters)) {}
@@ -446,6 +446,7 @@ async function completeSourceParameters(sourceParameters: ClioSourceParameters, 
   const clioInstance = new ClioInstance(sourceParameters);
   return makeRequestWithCredentials(
     getCredentialsProvider(sourceParameters.authServer),
+    isAuthRefreshable(sourceParameters),
     {
       url: clioInstance.getDatasetsUrl(),
       method: 'GET',
