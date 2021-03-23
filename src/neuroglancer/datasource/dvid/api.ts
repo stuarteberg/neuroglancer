@@ -22,6 +22,7 @@ import {CredentialsProvider} from 'neuroglancer/credentials_provider';
 import {fetchWithCredentials} from 'neuroglancer/credentials_provider/http_request';
 import {CancellationToken, uncancelableToken} from 'neuroglancer/util/cancellation';
 import {cancellableFetchOk, responseArrayBuffer, responseJson, ResponseTransform} from 'neuroglancer/util/http_request';
+import {DVIDSourceParameters} from 'neuroglancer/datasource/dvid/base';
 
 export interface DVIDToken {
   // If token is undefined, it indicates anonymous credentials that may be retried.
@@ -29,6 +30,9 @@ export interface DVIDToken {
 }
 
 export const credentialsKey = 'DVID';
+export const defaultDvidService = 'https://ngsupport-bmcp5imp6q-uk.a.run.app';
+export const defaultMeshService = `${defaultDvidService}/small-mesh`;
+export const defaultLocateService = `${defaultDvidService}/locate-body`;
 
 interface HttpCall {
   method: 'GET'|'POST'|'DELETE'|'HEAD';
@@ -95,7 +99,9 @@ export function makeRequest(
 
   if (httpCall.responseType === '') {
     return cancellableFetchOk(requestInfo, init, responseText, cancellationToken);
-  } else {
+  } else if (httpCall.responseType === 'arraybuffer') {
+    return cancellableFetchOk(requestInfo, init, responseArrayBuffer, cancellationToken);
+  } {
     return cancellableFetchOk(requestInfo, init, responseJson, cancellationToken);
   }
 }
@@ -151,4 +157,19 @@ export function fetchWithDVIDCredentials<T>(
         throw error;
       },
       cancellationToken);
+}
+
+export function fetchMeshDataFromService(parameters: DVIDSourceParameters,fragmentId: string, cancellationToken?: CancellationToken) {
+  if (defaultMeshService) {
+    const serviceUrl = defaultMeshService + `?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&decimation=0.5` + (parameters.user ? `&u=${parameters.user}` : '');
+    // console.log('Fetching mesh from ' + serviceUrl);
+    return makeRequest({
+      method: 'GET',
+      url: serviceUrl,
+      responseType: 'arraybuffer',
+    },
+    cancellationToken);
+  } else {
+    throw new Error('No mesh service available');
+  }
 }

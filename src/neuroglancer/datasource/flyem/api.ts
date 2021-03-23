@@ -34,7 +34,9 @@ export function makeRequest(
 
     if (httpCall.responseType === '') {
       return cancellableFetchOk(requestInfo, init, responseText, cancellationToken);
-    } else {
+    } else if (httpCall.responseType === 'arraybuffer') {
+      return cancellableFetchOk(requestInfo, init, responseArrayBuffer, cancellationToken);
+    } {
       return cancellableFetchOk(requestInfo, init, responseJson, cancellationToken);
     }
 }

@@ -27,7 +27,7 @@ import {Endianness} from 'neuroglancer/util/endian';
 import {registerSharedObject, SharedObject} from 'neuroglancer/worker_rpc';
 import {ChunkSourceParametersConstructor} from 'neuroglancer/chunk_manager/base';
 import {WithSharedCredentialsProviderCounterpart} from 'neuroglancer/credentials_provider/shared_counterpart';
-import {DVIDInstance, DVIDToken, makeRequestWithCredentials, appendQueryStringForDvid} from 'neuroglancer/datasource/dvid/api';
+import {DVIDInstance, DVIDToken, makeRequestWithCredentials, appendQueryStringForDvid, fetchMeshDataFromService} from 'neuroglancer/datasource/dvid/api';
 
 function DVIDSource<Parameters, TBase extends {new (...args: any[]): SharedObject}>(
   Base: TBase, parametersConstructor: ChunkSourceParametersConstructor<Parameters>) {
@@ -74,16 +74,35 @@ export function decodeFragmentChunk(chunk: FragmentChunk, response: ArrayBuffer)
   }
 
   downloadFragment(chunk: FragmentChunk, cancellationToken: CancellationToken) {
-    const {parameters} = this;
-    const dvidInstance = new DVIDInstance(parameters.baseUrl, parameters.nodeKey);
-    const meshUrl = dvidInstance.getKeyValueUrl(parameters.dataInstanceKey, `${chunk.fragmentId}.ngmesh`);
+    const { fragmentId } = chunk;
+    if (fragmentId) {
+      const {parameters} = this;
+      const dvidInstance = new DVIDInstance(parameters.baseUrl, parameters.nodeKey);
+      const meshUrl = dvidInstance.getKeyValueUrl(parameters.dataInstanceKey, `${fragmentId}.ngmesh`);
 
+      return makeRequestWithCredentials(this.credentialsProvider, {
+        method: 'GET',
+        url: appendQueryStringForDvid(meshUrl, parameters.user),
+        responseType: 'arraybuffer'
+      }, cancellationToken).catch(
+        () => fetchMeshDataFromService(parameters, fragmentId, cancellationToken)
+      ).then(
+        response => decodeFragmentChunk(chunk, response)
+      ).catch(error => {
+        console.log(error);
+      });
+    }
+
+    throw new Error('Invalid mesh fragment ID.');
+
+    /*
     return makeRequestWithCredentials(this.credentialsProvider, {
           method: 'GET',
           url: appendQueryStringForDvid(meshUrl, parameters.user),
           responseType: 'arraybuffer'
         }, cancellationToken)
         .then(response => decodeFragmentChunk(chunk, response));
+    */
   }
 }
 
