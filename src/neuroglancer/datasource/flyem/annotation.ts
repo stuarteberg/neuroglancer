@@ -73,6 +73,12 @@ export class AnnotationFacade {
       } else if (this.checked) {
         return 1;
       }
+    } else {
+      if (this.bookmarkType === 'False Split') {
+        return 2;
+      } else if (this.bookmarkType === 'False Merge') {
+        return 3;
+      }
     }
 
     return 0;
@@ -96,6 +102,21 @@ export class AnnotationFacade {
 
   set prop(value: {[key: string]: any}|undefined) {
     this.annotation.prop = value;
+  }
+
+  get bookmarkType() {
+    if (this.prop) {
+      switch (this.prop.type) {
+        case 'Split':
+          return 'False Merge';
+        case 'Merge':
+          return 'False Split';
+        default:
+          break;
+      }
+    }
+
+    return 'Other';
   }
 
   get type() {
