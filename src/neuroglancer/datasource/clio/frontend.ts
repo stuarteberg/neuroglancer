@@ -163,7 +163,7 @@ async function getAnnotationDataInfo(parameters: AnnotationSourceParameters): Pr
       'url': getGrayscaleInfoUrl(u),
       responseType: 'json'
     }).then(response => {
-      return new VolumeInfo(response, u.protocol);
+      return new VolumeInfo(response, (u.protocol === 'https') ? 'gs' : u.protocol);
     });
   } else {
     throw Error('No volume information provided.');
@@ -203,7 +203,7 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
   }) {
     super(chunkManager, {
       rank: 3,
-      relationships: [],
+      relationships: ['segments'],
       properties: options.parameters.properties,
       ...options
     });
