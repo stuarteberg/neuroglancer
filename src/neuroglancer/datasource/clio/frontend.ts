@@ -39,6 +39,7 @@ import {makeRequest} from 'neuroglancer/datasource/dvid/api';
 import {parseUrl} from 'neuroglancer/util/http_request';
 import {StatusMessage} from 'neuroglancer/status';
 import {FlyEMAnnotation} from 'neuroglancer/datasource/flyem/annotation';
+import {vec3} from 'neuroglancer/util/geom';
 import {VolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {makeAnnotationEditWidget} from 'neuroglancer/datasource/flyem/widgets';
 import {defaultAnnotationSchema, defaultAtlasSchema} from 'neuroglancer/datasource/clio/utils';
@@ -166,7 +167,14 @@ async function getAnnotationDataInfo(parameters: AnnotationSourceParameters): Pr
       return new VolumeInfo(response, (u.protocol === 'https') ? 'gs' : u.protocol);
     });
   } else {
-    throw Error('No volume information provided.');
+    return Promise.resolve({
+      numChannels: 1,
+      voxelSize: vec3.fromValues(32, 32, 32),
+      lowerVoxelBound: vec3.fromValues(0, 0, 0),
+      upperVoxelBound: vec3.fromValues(50000, 50000, 50000),
+      numLevels: 1
+    });
+    // throw Error('No volume information provided.');
   }
 }
 
@@ -452,10 +460,19 @@ async function completeSourceParameters(sourceParameters: ClioSourceParameters, 
       method: 'GET',
       responseType: 'json'
     }).then(response => {
-    const grayscaleInfo = verifyObjectProperty(response, sourceParameters.dataset, verifyObject);
-    sourceParameters.grayscale = verifyObjectProperty(grayscaleInfo, "location", verifyString);
-    return sourceParameters;
-  });
+      const grayscaleInfo = verifyObjectProperty(response, sourceParameters.dataset, verifyObject);
+      if ('location' in grayscaleInfo) {
+        sourceParameters.grayscale = verifyObjectProperty(grayscaleInfo, 'location', verifyString);
+      } else if ('mainLayer' in grayscaleInfo) {
+        const mainLayer = verifyObjectProperty(grayscaleInfo, 'mainLayer', verifyString);
+        const neuroglancer = verifyObjectProperty(grayscaleInfo, 'neuroglancer', verifyObject);
+        const layers = neuroglancer.layers;
+        const layer = layers.find((layer: {name: string}) => layer.name === mainLayer);
+        sourceParameters.grayscale = verifyObjectProperty(layer, 'source', verifyString);
+      }
+
+      return sourceParameters;
+    });
 }
 
 type AuthType = string|undefined|null;

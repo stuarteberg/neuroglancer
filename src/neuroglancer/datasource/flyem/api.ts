@@ -177,7 +177,7 @@ export class FlyEMCredentialsProvider<Token> extends CredentialsProvider<Token> 
       // headers.set('Access-Control-Allow-Origin', '*');
       return cancellableFetchOk(
         authServer,
-        {'method': 'GET', credentials: 'include', headers},
+        {'method': 'GET', headers},
         responseText,
         cancellationToken).catch(
           () => {
