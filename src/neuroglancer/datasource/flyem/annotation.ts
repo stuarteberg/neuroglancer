@@ -269,12 +269,23 @@ export function isAnnotationIdValid(id: AnnotationId) {
   return typeOfAnnotationId(id) !== null;
 }
 
+// Adapted from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript-without-using-a-library
+function parseToken(token: string) {
+  const base64Url = token.split('.')[1];
+  if (base64Url) {
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+
+    return JSON.parse(jsonPayload);
+  }
+}
+
 export function getUserFromToken(token: string, defaultUser?: string) {
   let tokenUser:string|undefined = undefined;
-
-  const payload = token.split('.')[1];
-  if (payload) {
-    const obj = JSON.parse(window.atob(payload));
+  const obj = parseToken(token);
+  if (obj) {
     if ('user' in obj) {
       tokenUser = obj['user'];
     } else if ('email' in obj) {
