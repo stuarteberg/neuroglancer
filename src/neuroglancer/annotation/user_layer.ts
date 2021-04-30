@@ -546,6 +546,7 @@ export class AnnotationUserLayer extends Base {
   }
 
   static type = 'annotation';
+  static typeAbbreviation = 'ann';
 }
 
 function makeShaderCodeWidget(layer: AnnotationUserLayer) {
@@ -576,7 +577,10 @@ class RenderingOptionsTab extends Tab {
             .registerDisposer(new DependentViewWidget(
                 layer.annotationProperties,
                 (properties, parent) => {
-                  if (properties === undefined) return;
+                  if (properties === undefined || properties.length === 0) return;
+                  const propertyList = document.createElement('div');
+                  parent.appendChild(propertyList);
+                  propertyList.classList.add('neuroglancer-annotation-shader-property-list');
                   for (const property of properties) {
                     const div = document.createElement('div');
                     div.classList.add('neuroglancer-annotation-shader-property');
@@ -592,7 +596,7 @@ class RenderingOptionsTab extends Tab {
                     if (description !== undefined) {
                       div.title = description;
                     }
-                    parent.appendChild(div);
+                    propertyList.appendChild(div);
                   }
                 }))
             .element);
@@ -624,8 +628,8 @@ class RenderingOptionsTab extends Tab {
   }
 }
 
-registerLayerType('annotation', AnnotationUserLayer);
-registerLayerType('pointAnnotation', AnnotationUserLayer);
+registerLayerType(AnnotationUserLayer);
+registerLayerType(AnnotationUserLayer, 'pointAnnotation');
 registerLayerTypeDetector(subsource => {
   if (subsource.local === LocalDataSource.annotations) {
     return {layerConstructor: AnnotationUserLayer, priority: 100};
