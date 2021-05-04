@@ -62,6 +62,7 @@ import {makeMoveToButton} from 'neuroglancer/widget/move_to_button';
 import {Tab} from 'neuroglancer/widget/tab_view';
 import {VirtualList, VirtualListSource} from 'neuroglancer/widget/virtual_list';
 import {FlyEMAnnotation} from '../datasource/flyem/annotation';
+import {globalViewerConfig} from 'neuroglancer/viewer';
 
 export class MergedAnnotationStates extends RefCounted implements
     WatchableValueInterface<readonly AnnotationLayerState[]> {
@@ -921,7 +922,7 @@ export class PlacePointTool extends PlaceAnnotationTool {
             (annotation: Annotation) => {
               // console.log('Annotation updated');
               if ((<FlyEMAnnotation>annotation).source === undefined) {
-                this.layer.selectAnnotation(annotationLayer, annotation.id, true);
+                this.layer.selectAnnotation(annotationLayer, annotation.id, true, !globalViewerConfig.expectingExternalUI);
               }
             }
           );
@@ -986,13 +987,13 @@ abstract class TwoStepAnnotationTool extends PlaceAnnotationTool {
           return;
         }
         state.annotationLayer.source.update(reference, newAnnotation);
-        this.layer.selectAnnotation(annotationLayer, reference.id, true);
+        this.layer.selectAnnotation(annotationLayer, reference.id, true, !globalViewerConfig.expectingExternalUI);
       };
 
       if (this.inProgressAnnotation === undefined) {
         const reference = annotationLayer.source.add(
             this.getInitialAnnotation(mouseState, annotationLayer), /*commit=*/ false);
-        this.layer.selectAnnotation(annotationLayer, reference.id, true);
+        this.layer.selectAnnotation(annotationLayer, reference.id, true, !globalViewerConfig.expectingExternalUI);
         const mouseDisposer = mouseState.changed.add(updatePointB);
         const disposer = () => {
           mouseDisposer();
@@ -1748,13 +1749,13 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
     }
 
     selectAnnotation(
-        annotationLayer: Borrowed<AnnotationLayerState>, id: string, pin: boolean|'toggle') {
+        annotationLayer: Borrowed<AnnotationLayerState>, id: string, pin: boolean|'toggle', forceShowingPanel = true) {
       this.manager.root.selectionState.captureSingleLayerState(this, state => {
         state.annotationId = id;
         state.annotationSourceIndex = annotationLayer.sourceIndex;
         state.annotationSubsource = annotationLayer.subsourceId;
         return true;
-      }, pin);
+      }, pin, forceShowingPanel);
     }
 
     toJSON() {

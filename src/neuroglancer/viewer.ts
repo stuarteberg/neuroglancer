@@ -286,7 +286,7 @@ class TrackableViewerState extends CompoundTrackable {
 }
 
 export const globalViewerConfig = {
-  expectingExternalUI: false
+  expectingExternalUI: true
 };
 
 export class Viewer extends RefCounted implements ViewerState {
@@ -662,7 +662,11 @@ export class Viewer extends RefCounted implements ViewerState {
     gridContainer.appendChild(this.sidePanelManager.element);
 
     this.closeSelectionTab = () => {
-      // selectionDetailsTab.close();
+      for (const panel of this.sidePanelManager.registeredPanels) {
+        if (panel.panel instanceof SelectionDetailsPanel) {
+          panel.panel.close();
+        }
+      }
     };
 
     this.registerDisposer(this.sidePanelManager.registerPanel({
@@ -726,6 +730,7 @@ export class Viewer extends RefCounted implements ViewerState {
     for (const action of ['recolor', 'clear-segments', ]) {
       this.bindAction(action, () => {
         this.layerManager.invokeAction(action);
+        this.closeSelectionTab && this.closeSelectionTab();
       });
     }
 

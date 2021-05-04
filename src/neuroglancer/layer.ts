@@ -965,7 +965,7 @@ const DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION = {
 
 const DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE = {
   ...DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION,
-  visible: true
+  visible: !globalViewerConfig.expectingExternalUI
 };
 
 export class TrackableDataSelectionState extends RefCounted implements
@@ -1044,12 +1044,12 @@ export class TrackableDataSelectionState extends RefCounted implements
 
   captureSingleLayerState<T extends UserLayer>(
       userLayer: Borrowed<T>, capture: (state: T['selectionState']) => boolean,
-      pin: boolean|'toggle' = true) {
+      pin: boolean|'toggle' = true, forceShowingPanel: boolean = true) {
     if (pin === false && (!this.location.visible || this.pin.value)) return;
     const state = {} as UserLayerSelectionState;
     userLayer.initializeSelectionState(state);
     if (capture(state)) {
-      if (!globalViewerConfig.expectingExternalUI) {
+      if (forceShowingPanel) {
         this.location.visible = true;
       }
       if (pin === true) {
