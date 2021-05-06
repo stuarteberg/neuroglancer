@@ -286,7 +286,7 @@ class TrackableViewerState extends CompoundTrackable {
 }
 
 export const globalViewerConfig = {
-  expectingExternalUI: true
+  expectingExternalUI: false
 };
 
 export class Viewer extends RefCounted implements ViewerState {
