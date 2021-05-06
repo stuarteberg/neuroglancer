@@ -66,6 +66,9 @@ import {MousePositionWidget, PositionWidget} from 'neuroglancer/widget/position_
 import {TrackableScaleBarOptions} from 'neuroglancer/widget/scale_bar';
 import {RPC} from 'neuroglancer/worker_rpc';
 import { StateShare, stateShareEnabled } from './datasource/state_share';
+import {setClipboard} from 'neuroglancer/util/clipboard';
+import {encodeFragment} from 'neuroglancer/ui/url_hash_binding';
+import {makeCopyButton} from 'neuroglancer/widget/copy_button';
 
 declare var NEUROGLANCER_OVERRIDE_DEFAULT_VIEWER_OPTIONS: any
 
@@ -362,6 +365,13 @@ export class Viewer extends RefCounted implements ViewerState {
   dataSourceProvider: Borrowed<DataSourceProviderRegistry>;
 
   uiConfiguration: ViewerUIConfiguration;
+  makeUrlFromState = (state: {[key: string]: any}) => {
+    if (!globalViewerConfig.expectingExternalUI) {
+      return window.location.toString();
+    } else {
+      return '/#!' + encodeFragment(JSON.stringify(state));
+    }
+  };
 
   get expectingExternalUI() {
     return globalViewerConfig.expectingExternalUI;
@@ -619,6 +629,16 @@ export class Viewer extends RefCounted implements ViewerState {
     }
 
     {
+      const button = makeCopyButton({
+        title: 'Copy view URL to clipboard',
+        onClick: () => {
+          setClipboard(this.makeUrlFromState(this.state.toJSON()));
+        }
+      });
+      topRow.appendChild(button);
+    }
+
+    {
       const {helpPanelState} = this;
       const button =
           this.registerDisposer(new CheckboxIcon(helpPanelState.location.watchableVisible, {
@@ -799,6 +819,10 @@ export class Viewer extends RefCounted implements ViewerState {
 
   editJsonState() {
     new StateEditorDialog(this);
+  }
+
+  copyJsonStateToUrl() {
+    setClipboard(this.makeUrlFromState(this.state.toJSON()));
   }
 
   showStatistics(value: boolean|undefined = undefined) {
