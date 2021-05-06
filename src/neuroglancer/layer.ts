@@ -965,7 +965,7 @@ const DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION = {
 
 const DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE = {
   ...DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION,
-  visible: !globalViewerConfig.expectingExternalUI
+  visible: true
 };
 
 export class TrackableDataSelectionState extends RefCounted implements
@@ -1077,7 +1077,7 @@ export class TrackableDataSelectionState extends RefCounted implements
     const {value} = this;
     let obj: any;
     if (this.location.visible) {
-      obj = this.location.toJSON(DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE);
+      obj = this.location.toJSON({ ...DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE, visible: !globalViewerConfig.expectingExternalUI });
       if (this.pin.value && value !== undefined) {
         const layersJson: any = {};
         for (const layerData of value.layers) {
@@ -1130,7 +1130,7 @@ export class TrackableDataSelectionState extends RefCounted implements
     }
     verifyObject(obj);
     // If the object is present, then visible by default.
-    this.location.restoreState(obj, DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE);
+    this.location.restoreState(obj, { ...DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE, visible: !globalViewerConfig.expectingExternalUI });
     const coordinateSpace = this.coordinateSpace.value;
     const position = coordinateSpace.rank > 0 ? verifyOptionalObjectProperty(
       obj, 'position',
