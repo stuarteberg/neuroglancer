@@ -892,7 +892,7 @@ function getMousePositionInAnnotationCoordinates(
   if (chunkTransform.error !== undefined) return undefined;
   const chunkPosition = new Float32Array(chunkTransform.modelTransform.unpaddedRank);
   if (!getChunkPositionFromCombinedGlobalLocalPositions(
-          chunkPosition, mouseState.position, annotationLayer.localPosition.value,
+          chunkPosition, mouseState.unsnappedPosition, annotationLayer.localPosition.value,
           chunkTransform.layerRank, chunkTransform.combinedGlobalLocalToChunkTransform)) {
     return undefined;
   }
@@ -997,6 +997,21 @@ abstract class PlaceTwoCornerAnnotationTool extends TwoStepAnnotationTool {
 export class PlaceBoundingBoxTool extends PlaceTwoCornerAnnotationTool {
   get description() {
     return `annotate bounding box`;
+  }
+
+  getUpdatedAnnotation(
+      oldAnnotation: AxisAlignedBoundingBox, mouseState: MouseSelectionState,
+      annotationLayer: AnnotationLayerState) {
+    const result = super.getUpdatedAnnotation(oldAnnotation, mouseState, annotationLayer) as
+        AxisAlignedBoundingBox;
+    const {pointA, pointB} = result;
+    const rank = pointA.length;
+    for (let i = 0; i < rank; ++i) {
+      if (pointA[i] === pointB[i]) {
+        pointB[i] += 1;
+      }
+    }
+    return result;
   }
 
   toJSON() {

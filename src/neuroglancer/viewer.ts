@@ -72,6 +72,11 @@ import {makeCopyButton} from 'neuroglancer/widget/copy_button';
 
 declare var NEUROGLANCER_OVERRIDE_DEFAULT_VIEWER_OPTIONS: any
 
+declare var NEUROGLANCER_CREDIT_LINK: {
+  url: string,
+  text: string,
+}|undefined;
+
 export class DataManagementContext extends RefCounted {
   worker: Worker;
   chunkQueueManager: ChunkQueueManager;
@@ -552,6 +557,17 @@ export class Viewer extends RefCounted implements ViewerState {
     this.registerDisposer(new ElementVisibilityFromTrackableBoolean(
         this.uiControlVisibility.showLocation, mousePositionWidget.element));
     topRow.appendChild(mousePositionWidget.element);
+
+    if (typeof NEUROGLANCER_CREDIT_LINK !== 'undefined') {
+      const {url, text} = NEUROGLANCER_CREDIT_LINK!;
+      const creditLink = document.createElement('a');
+      creditLink.href = url;
+      creditLink.textContent = text;
+      creditLink.style.fontFamily = 'sans-serif';
+      creditLink.style.color = 'yellow';
+      creditLink.target = '_blank';
+      topRow.appendChild(creditLink);
+    }
 
     const annotationToolStatus =
         this.registerDisposer(new AnnotationToolStatusWidget(this.selectedLayer));
