@@ -70,6 +70,7 @@ export async function getHtmlPathCompletions(
 const specialProtocolEmptyCompletions: CompletionWithDescription[] = [
   {value: 'gs://', description: 'Google Cloud Storage (JSON API)'},
   {value: 'gs+xml://', description: 'Google Cloud Storage (XML API)'},
+  {value: 'gs+json://', description: 'Google Cloud Storage (storage JSON API)'},
   {value: 'gs+ngauth+http://', description: 'Google Cloud Storage (JSON API) authenticated via ngauth'},
   {value: 'gs+ngauth+https://', description: 'Google Cloud Storage (JSON API) authenticated via ngauth'},
   {value: 'gs+xml+ngauth+http://', description: 'Google Cloud Storage (XML API) authenticated via ngauth'},
@@ -103,7 +104,7 @@ export async function completeHttpPath(
       return await getS3PathCompletions(
           credentialsProvider, `${protocol}://${host}`, `https://storage.googleapis.com/${host}`,
           path, cancellationToken);
-    } else if (protocol === 'gs' && path.length > 0) {
+    } else if ((protocol === 'gs' || protocol === 'gs+json') && path.length > 0) {
       return await getGcsPathCompletions(
           credentialsProvider, `${protocol}://${host}`, host, path, cancellationToken);
     }
