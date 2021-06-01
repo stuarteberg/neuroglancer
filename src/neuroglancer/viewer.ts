@@ -96,7 +96,7 @@ export class DataManagementContext extends RefCounted {
           gpuMemory: new CapacitySpecification({defaultItemLimit: 1e6, defaultSizeLimit: 1e9}),
           systemMemory: new CapacitySpecification({defaultItemLimit: 1e7, defaultSizeLimit: 2e9}),
           download: new CapacitySpecification(
-              {defaultItemLimit: 32, defaultSizeLimit: Number.POSITIVE_INFINITY}),
+              {defaultItemLimit: 100, defaultSizeLimit: Number.POSITIVE_INFINITY}),
           compute: new CapacitySpecification({defaultItemLimit: 128, defaultSizeLimit: 5e8}),
         }));
     this.chunkQueueManager.registerDisposer(() => this.worker.terminate());
@@ -783,26 +783,20 @@ export class Viewer extends RefCounted implements ViewerState {
 
     for (let i = 1; i <= 9; ++i) {
       this.bindAction(`toggle-layer-${i}`, () => {
-        const layerIndex = i - 1;
-        const layers = this.layerManager.managedLayers;
-        if (layerIndex < layers.length) {
-          let layer = layers[layerIndex];
+        const layer = this.layerManager.getLayerByNonArchivedIndex(i - 1);
+        if (layer !== undefined) {
           layer.setVisible(!layer.visible);
         }
       });
       this.bindAction(`toggle-pick-layer-${i}`, () => {
-        const layerIndex = i - 1;
-        const layers = this.layerManager.managedLayers;
-        if (layerIndex < layers.length) {
-          let layer = layers[layerIndex];
+        const layer = this.layerManager.getLayerByNonArchivedIndex(i - 1);
+        if (layer !== undefined) {
           layer.pickEnabled = !layer.pickEnabled;
         }
       });
       this.bindAction(`select-layer-${i}`, () => {
-        const layerIndex = i - 1;
-        const layers = this.layerManager.managedLayers;
-        if (layerIndex < layers.length) {
-          const layer = layers[layerIndex];
+        const layer = this.layerManager.getLayerByNonArchivedIndex(i - 1);
+        if (layer !== undefined) {
           this.selectedLayer.layer = layer;
           this.selectedLayer.visible = true;
         }
