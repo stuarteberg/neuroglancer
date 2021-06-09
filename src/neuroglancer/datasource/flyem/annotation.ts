@@ -66,7 +66,7 @@ export class AnnotationFacade {
     this.annotation = annotation as FlyEMAnnotation;
   }
 
-  get renderingAttribute() {
+  get renderingAttribute() : number {
     if (this.kind === 'Atlas') {
       if (!this.title) {
         return -1;
@@ -129,6 +129,7 @@ export class AnnotationFacade {
 
   set kind(value) {
     this.annotation.kind = value;
+    this.update();
   }
 
   roundPos() {

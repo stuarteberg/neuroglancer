@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+ import {vec3} from 'neuroglancer/util/geom';
+ import { AnnotationPropertySpec } from 'src/neuroglancer/annotation';
+
+ const annotationChunkDataSize = vec3.fromValues(64, 64, 64);
+
 export enum VolumeChunkEncoding {
   JPEG,
   RAW,
@@ -27,6 +32,7 @@ export class DVIDSourceParameters {
   dataInstanceKey: string;
   authServer?: string;
   user?: string;
+  usertag?: boolean;
 }
 
 export class VolumeChunkSourceParameters extends DVIDSourceParameters {
@@ -41,4 +47,21 @@ export class SkeletonSourceParameters extends DVIDSourceParameters {
 
 export class MeshSourceParameters extends DVIDSourceParameters {
   static RPC_ID = 'dvid/MeshSource';
+}
+
+export class AnnotationSourceParametersBase extends DVIDSourceParameters {
+  chunkDataSize = annotationChunkDataSize;
+  properties: AnnotationPropertySpec[];
+  syncedLabel?: string;
+  readonly?: boolean;
+  tags?: any;
+  schema?: any;
+}
+
+export class AnnotationSourceParameters extends AnnotationSourceParametersBase {
+  static RPC_ID = 'dvid/Annotation';
+}
+
+export class AnnotationChunkSourceParameters extends AnnotationSourceParametersBase {
+  static RPC_ID = 'dvid/AnnotationChunkSource';
 }
