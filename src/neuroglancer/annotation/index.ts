@@ -72,6 +72,7 @@ export enum AnnotationType {
   LINE,
   AXIS_ALIGNED_BOUNDING_BOX,
   ELLIPSOID,
+  SPHERE,
 }
 
 export const annotationTypes = [
@@ -79,6 +80,7 @@ export const annotationTypes = [
   AnnotationType.LINE,
   AnnotationType.AXIS_ALIGNED_BOUNDING_BOX,
   AnnotationType.ELLIPSOID,
+  AnnotationType.SPHERE,
 ];
 
 export interface AnnotationPropertySpecBase {
@@ -484,6 +486,12 @@ export interface Point extends AnnotationBase {
   type: AnnotationType.POINT;
 }
 
+export interface Sphere extends AnnotationBase {
+  pointA: Float32Array;
+  pointB: Float32Array;
+  type: AnnotationType.SPHERE;
+}
+
 export interface AxisAlignedBoundingBox extends AnnotationBase {
   pointA: Float32Array;
   pointB: Float32Array;
@@ -496,7 +504,7 @@ export interface Ellipsoid extends AnnotationBase {
   type: AnnotationType.ELLIPSOID;
 }
 
-export type Annotation = Line|Point|AxisAlignedBoundingBox|Ellipsoid;
+export type Annotation = Line|Point|AxisAlignedBoundingBox|Ellipsoid|Sphere;
 
 export interface AnnotationTypeHandler<T extends Annotation = Annotation> {
   icon: string;
@@ -579,6 +587,42 @@ export const annotationTypeHandlers: Record<AnnotationType, AnnotationTypeHandle
               return {type: AnnotationType.LINE, pointA, pointB, id, properties: []};
             },
     visitGeometry(annotation: Line, callback) {
+      callback(annotation.pointA, false);
+      callback(annotation.pointB, false);
+    },
+  },
+  [AnnotationType.SPHERE]: {
+    icon: '⊖',
+    description: 'Sphere',
+    toJSON(annotation: Sphere) {
+      return {
+        pointA: Array.from(annotation.pointA),
+        pointB: Array.from(annotation.pointB),
+      };
+    },
+    restoreState(annotation: Sphere, obj: any, rank: number) {
+      annotation.pointA = verifyObjectProperty(
+          obj, 'pointA', x => parseFixedLengthArray(new Float32Array(rank), x, verifyFiniteFloat));
+      annotation.pointB = verifyObjectProperty(
+          obj, 'pointB', x => parseFixedLengthArray(new Float32Array(rank), x, verifyFiniteFloat));
+    },
+    serializedBytes(rank: number) {
+      return 2 * 4 * rank;
+    },
+    serialize(
+        buffer: DataView, offset: number, isLittleEndian: boolean, rank: number, annotation: Sphere) {
+      serializeTwoFloatVectors(
+          buffer, offset, isLittleEndian, rank, annotation.pointA, annotation.pointB);
+    },
+    deserialize:
+        (buffer: DataView, offset: number, isLittleEndian: boolean, rank: number, id: string):
+            Sphere => {
+              const pointA = new Float32Array(rank);
+              const pointB = new Float32Array(rank);
+              deserializeTwoFloatVectors(buffer, offset, isLittleEndian, rank, pointA, pointB);
+              return {type: AnnotationType.SPHERE, pointA, pointB, id, properties: []};
+            },
+    visitGeometry(annotation: Sphere, callback) {
       callback(annotation.pointA, false);
       callback(annotation.pointB, false);
     },
@@ -957,6 +1001,7 @@ export class LocalAnnotationSource extends AnnotationSource {
           annotation.point = mapVector(annotation.point);
           break;
         case AnnotationType.LINE:
+        case AnnotationType.SPHERE:
         case AnnotationType.AXIS_ALIGNED_BOUNDING_BOX:
           annotation.pointA = mapVector(annotation.pointA);
           annotation.pointB = mapVector(annotation.pointB);
@@ -1047,7 +1092,7 @@ function serializeAnnotations(
 }
 
 export class AnnotationSerializer {
-  annotations: [Point[], Line[], AxisAlignedBoundingBox[], Ellipsoid[]] = [[], [], [], []];
+  annotations: [Point[], Line[], AxisAlignedBoundingBox[], Ellipsoid[], Sphere[]] = [[], [], [], [], []];
   constructor(public propertySerializer: AnnotationPropertySerializer) {}
   add(annotation: Annotation) {
     (<Annotation[]>this.annotations[annotation.type]).push(annotation);

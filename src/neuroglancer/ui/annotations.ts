@@ -20,7 +20,7 @@
 
 import './annotations.css';
 
-import {Annotation, AnnotationId, AnnotationReference, AnnotationSource, annotationToJson, AnnotationType, annotationTypeHandlers, AxisAlignedBoundingBox, Ellipsoid, formatNumericProperty, Line} from 'neuroglancer/annotation';
+import {Annotation, AnnotationId, AnnotationReference, AnnotationSource, annotationToJson, AnnotationType, annotationTypeHandlers, AxisAlignedBoundingBox, Ellipsoid, formatNumericProperty, Line, Sphere} from 'neuroglancer/annotation';
 import {AnnotationDisplayState, AnnotationLayerState} from 'neuroglancer/annotation/annotation_layer_state';
 import {MultiscaleAnnotationSource} from 'neuroglancer/annotation/frontend_source';
 import {AnnotationLayer, PerspectiveViewAnnotationLayer, SliceViewAnnotationLayer, SpatiallyIndexedPerspectiveViewAnnotationLayer, SpatiallyIndexedSliceViewAnnotationLayer} from 'neuroglancer/annotation/renderlayer';
@@ -123,6 +123,7 @@ function getCenterPosition(center: Float32Array, annotation: Annotation) {
   switch (annotation.type) {
     case AnnotationType.AXIS_ALIGNED_BOUNDING_BOX:
     case AnnotationType.LINE:
+    case AnnotationType.SPHERE:
       vector.add(center, annotation.pointA, annotation.pointB);
       vector.scale(center, center, 0.5);
       break;
@@ -327,6 +328,15 @@ export class AnnotationLayerView extends Tab {
       },
     });
     mutableControls.appendChild(lineButton);
+
+    const sphereButton = makeIcon({
+      text: annotationTypeHandlers[AnnotationType.SPHERE].icon,
+      title: 'Annotate Sphere',
+      onClick: () => {
+        this.layer.tool.value = new PlaceSphereTool(this.layer, {});
+      },
+    });
+    mutableControls.appendChild(sphereButton);
 
     const ellipsoidButton = makeIcon({
       text: annotationTypeHandlers[AnnotationType.ELLIPSOID].icon,
@@ -834,7 +844,8 @@ abstract class PlaceAnnotationTool extends Tool {
 const ANNOTATE_POINT_TOOL_ID = 'annotatePoint';
 const ANNOTATE_LINE_TOOL_ID = 'annotateLine';
 const ANNOTATE_BOUNDING_BOX_TOOL_ID = 'annotateBoundingBox';
-const ANNOTATE_ELLIPSOID_TOOL_ID = 'annotateSphere';
+const ANNOTATE_ELLIPSOID_TOOL_ID = 'annotateEllipsoid';
+const ANNOTATE_SPHERE_TOOL_ID = 'annotateSphere'
 
 export class PlacePointTool extends PlaceAnnotationTool {
   sourceSignalUpdated = false;
@@ -970,12 +981,12 @@ abstract class TwoStepAnnotationTool extends PlaceAnnotationTool {
 
 
 abstract class PlaceTwoCornerAnnotationTool extends TwoStepAnnotationTool {
-  annotationType: AnnotationType.LINE|AnnotationType.AXIS_ALIGNED_BOUNDING_BOX;
+  annotationType: AnnotationType.LINE|AnnotationType.AXIS_ALIGNED_BOUNDING_BOX|AnnotationType.SPHERE;
 
   getInitialAnnotation(mouseState: MouseSelectionState, annotationLayer: AnnotationLayerState):
       Annotation {
     const point = getMousePositionInAnnotationCoordinates(mouseState, annotationLayer);
-    return <AxisAlignedBoundingBox|Line>{
+    return <AxisAlignedBoundingBox|Line|Sphere>{
       id: '',
       type: this.annotationType,
       description: '',
@@ -986,7 +997,7 @@ abstract class PlaceTwoCornerAnnotationTool extends TwoStepAnnotationTool {
   }
 
   getUpdatedAnnotation(
-      oldAnnotation: AxisAlignedBoundingBox|Line, mouseState: MouseSelectionState,
+      oldAnnotation: AxisAlignedBoundingBox|Line|Sphere, mouseState: MouseSelectionState,
       annotationLayer: AnnotationLayerState): Annotation {
     const point = getMousePositionInAnnotationCoordinates(mouseState, annotationLayer);
     if (point === undefined) return oldAnnotation;
@@ -1060,6 +1071,46 @@ export class PlaceLineTool extends PlaceTwoCornerAnnotationTool {
 }
 PlaceLineTool.prototype.annotationType = AnnotationType.LINE;
 
+export class PlaceSphereTool extends PlaceTwoCornerAnnotationTool {
+  get description() {
+    return `annotate sphere`;
+  }
+
+  private initialRelationships: Uint64[][]|undefined;
+
+  getInitialAnnotation(mouseState: MouseSelectionState, annotationLayer: AnnotationLayerState):
+      Annotation {
+    const result = super.getInitialAnnotation(mouseState, annotationLayer);
+    this.initialRelationships = result.relatedSegments =
+        getSelectedAssociatedSegments(annotationLayer);
+    return result;
+  }
+
+  getUpdatedAnnotation(
+      oldAnnotation: Sphere, mouseState: MouseSelectionState,
+      annotationLayer: AnnotationLayerState) {
+    const result = super.getUpdatedAnnotation(oldAnnotation, mouseState, annotationLayer);
+    const initialRelationships = this.initialRelationships;
+    const newRelationships = getSelectedAssociatedSegments(annotationLayer);
+    if (initialRelationships === undefined) {
+      result.relatedSegments = newRelationships;
+    } else {
+      result.relatedSegments = Array.from(newRelationships, (newSegments, i) => {
+        const initialSegments = initialRelationships[i];
+        newSegments =
+            newSegments.filter(x => initialSegments.findIndex(y => Uint64.equal(x, y)) === -1);
+        return [...initialSegments, ...newSegments];
+      });
+    }
+    return result;
+  }
+
+  toJSON() {
+    return ANNOTATE_SPHERE_TOOL_ID;
+  }
+}
+PlaceSphereTool.prototype.annotationType = AnnotationType.SPHERE;
+
 class PlaceEllipsoidTool extends TwoStepAnnotationTool {
   getInitialAnnotation(mouseState: MouseSelectionState, annotationLayer: AnnotationLayerState):
       Annotation {
@@ -1112,6 +1163,9 @@ registerTool(
 registerTool(
     ANNOTATE_ELLIPSOID_TOOL_ID,
     (layer, options) => new PlaceEllipsoidTool(<UserLayerWithAnnotations>layer, options));
+registerTool(
+  ANNOTATE_SPHERE_TOOL_ID,
+  (layer, options) => new PlaceSphereTool(<UserLayerWithAnnotations>layer, options));
 
 const newRelatedSegmentKeyMap = EventActionMap.fromObject({
   'enter': {action: 'commit'},
