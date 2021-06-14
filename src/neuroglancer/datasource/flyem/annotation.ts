@@ -1,7 +1,7 @@
 import {Uint64} from 'neuroglancer/util/uint64';
 import {registerRPC} from 'neuroglancer/worker_rpc';
 import {AnnotationGeometryChunkSource} from 'neuroglancer/annotation/frontend_source';
-import {Point, Line, AnnotationBase, Annotation, AnnotationType, AnnotationId, fixAnnotationAfterStructuredCloning} from 'neuroglancer/annotation';
+import {Point, Line, Sphere, AnnotationBase, Annotation, AnnotationType, AnnotationId, fixAnnotationAfterStructuredCloning} from 'neuroglancer/annotation';
 
 export const ANNOTAIION_COMMIT_ADD_SIGNAL_RPC_ID = 'annotation.add.signal';
 
@@ -52,13 +52,22 @@ class TLine extends TAnnotationBase implements Line {
   type: AnnotationType.LINE;
 }
 
+class TSphere extends TAnnotationBase implements Sphere {
+  pointA: Float32Array;
+  pointB: Float32Array;
+  type: AnnotationType.SPHERE;
+}
+
 export class PointAnnotation extends WithFlyEMProp(TPoint) {
 }
 
 export class LineAnnotation extends WithFlyEMProp(TLine) {
 }
 
-export type FlyEMAnnotation = PointAnnotation | LineAnnotation;
+export class SphereAnnotation extends WithFlyEMProp(TSphere) {
+}
+
+export type FlyEMAnnotation = PointAnnotation | LineAnnotation | SphereAnnotation;
 
 export class AnnotationFacade {
   annotation: FlyEMAnnotation;
@@ -135,7 +144,7 @@ export class AnnotationFacade {
   roundPos() {
     if (this.annotation.type === AnnotationType.POINT) {
       this.annotation.point = this.annotation.point.map(x => Math.round(x));
-    } else if (this.annotation.type === AnnotationType.LINE) {
+    } else if (this.annotation.type === AnnotationType.LINE || this.annotation.type === AnnotationType.SPHERE) {
       this.annotation.pointA = this.annotation.pointA.map(x => Math.round(x));
       this.annotation.pointB = this.annotation.pointB.map(x => Math.round(x));
     }
@@ -229,7 +238,9 @@ export function typeOfAnnotationId(id: AnnotationId) {
     return AnnotationType.POINT;
   } else if (id.match(/^-?\d+_-?\d+_-?\d+--?\d+_-?\d+_-?\d+-Line$/) || id.match(/^Ln-?\d+_-?\d+_-?\d+_?\d+_-?\d+_-?\d+/)) {
     return AnnotationType.LINE;
-  } else {
+  } else if (id.match(/^-?\d+_-?\d+_-?\d+--?\d+_-?\d+_-?\d+-Sphere$/) || id.match(/^Sp-?\d+_-?\d+_-?\d+_?\d+_-?\d+_-?\d+/)) {
+    return AnnotationType.SPHERE;
+  } {
     console.log(`Invalid annotation ID for DVID: ${id}`);
     return null;
   }
@@ -249,6 +260,9 @@ export function getAnnotationKey(annotation: FlyEMAnnotation, keyHandle?: string
         break;
       case AnnotationType.LINE:
         key = `Ln${annotation.pointA[0]}_${annotation.pointA[1]}_${annotation.pointA[2]}_${annotation.pointB[0]}_${annotation.pointB[1]}_${annotation.pointB[2]}`;
+        break;
+      case AnnotationType.SPHERE:
+        key = `Sp${annotation.pointA[0]}_${annotation.pointA[1]}_${annotation.pointA[2]}_${annotation.pointB[0]}_${annotation.pointB[1]}_${annotation.pointB[2]}`;
         break;
     }
   }

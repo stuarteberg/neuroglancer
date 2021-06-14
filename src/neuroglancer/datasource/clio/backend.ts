@@ -207,6 +207,10 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
     return Promise.resolve(getAnnotationStore(this.parameters).getValue(id));
   }
 
+  private requestSphereMetaData(id: AnnotationId, _: CancellationToken) {
+    return Promise.resolve(getAnnotationStore(this.parameters).getValue(id));
+  }
+
   private requestPointMetaData(id: AnnotationId, _: CancellationToken) {
     return Promise.resolve(getAnnotationStore(this.parameters).getValue(id));
     /*
@@ -237,6 +241,8 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
         return this.requestPointMetaData(id, cancellationToken);
       case AnnotationType.LINE:
         return this.requestLineMetaData(id, cancellationToken);
+      case AnnotationType.SPHERE:
+        return this.requestSphereMetaData(id, cancellationToken);
       default:
         throw new Error(`Invalid annotation ID for DVID: ${id}`);
     }

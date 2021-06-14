@@ -138,20 +138,6 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
       return makeAnnotationEditWidget(reference, this.parameters.schema, this, getFacade, getProp, setProp);
     };
 
-    /*
-    this.childRefreshed = this.childRefreshed || new NullarySignal();
-
-    this.makeFilterWidget = () => {
-      let element = createBasicElement(
-        {title: 'Filter', type: 'string'}, 'annotationFilter', '');
-      element.addEventListener('change', (e: Event) => {
-        console.log(e);
-      });
-
-      return element;
-    };
-    */
-
     this.getUser = () => this.parameters.user;
   }
 
@@ -187,7 +173,7 @@ export class ClioAnnotationSource extends MultiscaleAnnotationSourceBase {
   }
 
   commit(reference: Borrowed<AnnotationReference>) {
-    if (reference.value && reference.value.type === AnnotationType.LINE) {
+    if (reference.value && (reference.value.type === AnnotationType.LINE || reference.value.type === AnnotationType.SPHERE)) {
       reference.value.pointA = reference.value.pointA.map(x => Math.round(x));
       reference.value.pointB = reference.value.pointB.map(x => Math.round(x));
     }

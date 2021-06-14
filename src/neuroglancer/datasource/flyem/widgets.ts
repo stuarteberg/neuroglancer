@@ -378,7 +378,7 @@ export function makeAnnotationEditWidget(reference: AnnotationReference, schema:
   const annotation = {...reference.value!};
 
   if (annotation.type !== AnnotationType.POINT &&
-  annotation.type !== AnnotationType.LINE) {
+  annotation.type !== AnnotationType.LINE && annotation.type !== AnnotationType.SPHERE) {
     return null;
   }
 

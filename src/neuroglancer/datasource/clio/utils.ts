@@ -20,13 +20,14 @@
 
 import {verifyObject, verifyObjectProperty, verifyString, verifyBoolean, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
-import {PointAnnotation, LineAnnotation, AnnotationFacade, getAnnotationId} from 'neuroglancer/datasource/flyem/annotation';
+import {PointAnnotation, LineAnnotation, AnnotationFacade, getAnnotationId, SphereAnnotation} from 'neuroglancer/datasource/flyem/annotation';
 import { AnnotationType } from 'neuroglancer/annotation';
 
 export type ClioPointAnnotation = PointAnnotation;
 export type ClioLineAnnotation = LineAnnotation;
+export type ClioSphereAnnotation = SphereAnnotation;
 
-export type ClioAnnotation = ClioPointAnnotation | ClioLineAnnotation;
+export type ClioAnnotation = ClioPointAnnotation | ClioLineAnnotation | ClioSphereAnnotation;
 export class ClioAnnotationFacade extends AnnotationFacade {
   get title() {
     return this.annotation.ext && this.annotation.ext.title;
@@ -320,6 +321,46 @@ export class V2LineAnnotationRequestHelper extends AnnotationRequestHelper<ClioL
   }
 }
 
+export class V2SphereAnnotationRequestHelper extends AnnotationRequestHelper<ClioSphereAnnotation> {
+  encode(annotation: ClioSphereAnnotation): { [key: string]: any } | null {
+    const obj = encodeAnnotationV2(annotation);
+    if (obj === null) {
+      return null;
+    }
+
+    obj.kind = 'sphere';
+    obj.pos = [annotation.pointA[0], annotation.pointA[1], annotation.pointA[2], annotation.pointB[0], annotation.pointB[1], annotation.pointB[2]];
+
+    return obj;
+  }
+
+  decode(key: string, entry: { [key: string]: any }): ClioSphereAnnotation | null {
+    try {
+      if (verifyObjectProperty(entry, 'kind', verifyString) !== 'sphere') {
+        throw new Error('Invalid kind for line annotation data.');
+      }
+
+      const pos = verifyObjectProperty(entry, 'pos', x => parseIntVec(new Float32Array(6), x));
+
+      const annotation: ClioSphereAnnotation = {
+        id: '',
+        key,
+        type: AnnotationType.SPHERE,
+        pointA: pos.slice(0, 3),
+        pointB: pos.slice(3, 6),
+        properties: []
+      };
+
+      decodeAnnotationPropV2(entry, annotation);
+
+      return annotation;
+    } catch (e) {
+      console.log(e);
+      return null;
+    }
+  }
+}
+
 export class V2AtlasAnnotationRequestHelper extends V2PointAnnotationRequestHelper {
   defaultKind = 'Atlas';
   uploadable(annotation: ClioPointAnnotation|string) {
@@ -339,7 +380,8 @@ export class V2AtlasAnnotationRequestHelper extends V2PointAnnotationRequestHelp
 export function makeAnnotationRequestHelpers(
   init: {
     [AnnotationType.POINT]: AnnotationRequestHelper<ClioPointAnnotation>|null|undefined,
-    [AnnotationType.LINE]?: AnnotationRequestHelper<ClioLineAnnotation>|null
+    [AnnotationType.LINE]?: AnnotationRequestHelper<ClioLineAnnotation>|null,
+    [AnnotationType.SPHERE]?: AnnotationRequestHelper<ClioSphereAnnotation>|null
   }
 ) {
   const helpers: any = { ...init };
@@ -348,6 +390,9 @@ export function makeAnnotationRequestHelpers(
   }
   if (init[AnnotationType.LINE]) {
     helpers.lineseg = init[AnnotationType.LINE];
+  }
+  if (init[AnnotationType.SPHERE]) {
+    helpers.sphere = init[AnnotationType.SPHERE];
   }
 
   return helpers;
@@ -362,7 +407,8 @@ export function makeEncoders(api: string|undefined, kind: string|undefined) {
     } else {
       return makeAnnotationRequestHelpers({
         [AnnotationType.POINT]: new V2PointAnnotationRequestHelper(true),
-        [AnnotationType.LINE]: new V2LineAnnotationRequestHelper(true)
+        [AnnotationType.LINE]: new V2LineAnnotationRequestHelper(true),
+        [AnnotationType.SPHERE]: new V2SphereAnnotationRequestHelper(true)
       });
     }
   }
