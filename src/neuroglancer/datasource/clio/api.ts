@@ -41,15 +41,25 @@ function parseDVIDSourceUrl(url: string): { baseUrl: string, nodeKey: string, da
   };
 }
 
+export function parseGrayscaleUrl(source: string) {
+  let u = parseUrl(source);
+  if (u.protocol === 'precomputed') {
+    u = parseUrl(u.host + u.path);
+  }
+
+  return u;
+}
+
 export function getGrayscaleInfoUrl(u: {protocol: string, host: string, path: string}): string {
-  switch (u.protocol) {
+  let { protocol, host, path } = u;
+  switch (protocol) {
     case 'gs':
-      return `https://storage.googleapis.com/${u.host}${u.path}/info`;
+      return `https://storage.googleapis.com/${host}${path}/info`;
     case 'dvid':
-      const sourceParameters = parseDVIDSourceUrl(u.host + u.path);
+      const sourceParameters = parseDVIDSourceUrl(host + path);
       return `${sourceParameters.baseUrl}/api/node/${sourceParameters.nodeKey}/${sourceParameters.dataInstanceKey}/info`;
     case 'https':
-      return `${u.protocol}://${u.host}${u.path}/info`;
+      return `${protocol}://${host}${path}/info`;
     default:
       throw Error("Unrecognized volume information");
   }
@@ -68,8 +78,7 @@ export class ClioInstance {
   }
 
   getGrayscaleInfoUrl(): string {
-    const u = parseUrl(this.parameters.grayscale!);
-
+    let u = parseGrayscaleUrl(this.parameters.grayscale!);
     return getGrayscaleInfoUrl(u);
   }
 

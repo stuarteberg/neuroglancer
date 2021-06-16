@@ -36,14 +36,13 @@ import {getUserFromToken} from 'neuroglancer/datasource/flyem/annotation';
 import {ClioAnnotationFacade, parseDescription} from 'neuroglancer/datasource/clio/utils';
 import {Borrowed} from 'neuroglancer/util/disposable';
 import {makeRequest} from 'neuroglancer/datasource/dvid/api';
-import {parseUrl} from 'neuroglancer/util/http_request';
 import {StatusMessage} from 'neuroglancer/status';
 import {FlyEMAnnotation} from 'neuroglancer/datasource/flyem/annotation';
 import {vec3} from 'neuroglancer/util/geom';
 import {VolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {makeAnnotationEditWidget} from 'neuroglancer/datasource/flyem/widgets';
 import {defaultAnnotationSchema, defaultAtlasSchema} from 'neuroglancer/datasource/clio/utils';
-import {ClioToken, credentialsKey, makeRequestWithCredentials, getGrayscaleInfoUrl, ClioInstance} from 'neuroglancer/datasource/clio/api';
+import {ClioToken, credentialsKey, makeRequestWithCredentials, getGrayscaleInfoUrl, ClioInstance, parseGrayscaleUrl} from 'neuroglancer/datasource/clio/api';
 import {AnnotationSourceParameters, AnnotationChunkSourceParameters, ClioSourceParameters, isAuthRefreshable} from 'neuroglancer/datasource/clio/base';
 
 class ClioAnnotationChunkSource extends
@@ -52,7 +51,7 @@ class ClioAnnotationChunkSource extends
 async function getAnnotationDataInfo(parameters: AnnotationSourceParameters): Promise<VolumeInfo> {
   const { grayscale } = parameters;
   if (grayscale) {
-    const u = parseUrl(grayscale);
+    let u = parseGrayscaleUrl(grayscale);
     return makeRequest({
       'method': 'GET',
       'url': getGrayscaleInfoUrl(u),
@@ -348,7 +347,11 @@ async function completeSourceParameters(sourceParameters: ClioSourceParameters, 
         const neuroglancer = verifyObjectProperty(grayscaleInfo, 'neuroglancer', verifyObject);
         const layers = neuroglancer.layers;
         const layer = layers.find((layer: {name: string}) => layer.name === mainLayer);
-        sourceParameters.grayscale = verifyObjectProperty(layer, 'source', verifyString);
+        if (layer.source && layer.source.url) {
+          sourceParameters.grayscale = verifyObjectProperty(layer.source, 'url', verifyString);
+        } else {
+          sourceParameters.grayscale = verifyObjectProperty(layer, 'source', verifyString);
+        }
       }
 
       return sourceParameters;
