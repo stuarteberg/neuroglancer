@@ -14,24 +14,15 @@
  * limitations under the License.
  */
 
-.range-slider {
+.neuroglancer-segmentation-color-seed-control {
   display: flex;
   flex-direction: row;
-  white-space: nowrap;
+  align-items: center;
   justify-content: flex-end;
 }
 
-.range-slider input[type='range'] {
-  background: transparent;
-  flex-basis: 0px;
-}
-
-.range-slider input[type='number'] {
+.neuroglancer-segmentation-color-seed-control input {
   background-color: rgba(255, 255, 255, 0.3);
   color: #fff;
   border: 0px;
-}
-
-.range-slider input[type=range]::-moz-range-track {
-  background-color: white;
 }

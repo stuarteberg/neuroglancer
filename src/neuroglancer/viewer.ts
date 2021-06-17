@@ -18,9 +18,9 @@ import './viewer.css';
 import 'neuroglancer/noselect.css';
 
 import svg_controls_alt from 'ikonate/icons/controls-alt.svg';
-import svg_settings from 'ikonate/icons/settings.svg';
 import svg_layers from 'ikonate/icons/layers.svg';
 import svg_list from 'ikonate/icons/list.svg';
+import svg_settings from 'ikonate/icons/settings.svg';
 import debounce from 'lodash/debounce';
 import {CapacitySpecification, ChunkManager, ChunkQueueManager, FrameNumberCounter} from 'neuroglancer/chunk_manager/frontend';
 import {makeCoordinateSpace, TrackableCoordinateSpace} from 'neuroglancer/coordinate_transform';
@@ -46,12 +46,13 @@ import {SelectionDetailsPanel} from 'neuroglancer/ui/selection_details';
 import {SidePanelManager} from 'neuroglancer/ui/side_panel';
 import {StateEditorDialog} from 'neuroglancer/ui/state_editor';
 import {StatisticsDisplayState, StatisticsPanel} from 'neuroglancer/ui/statistics';
+import {ToolBinder} from 'neuroglancer/ui/tool';
 import {ViewerSettingsPanel, ViewerSettingsPanelState} from 'neuroglancer/ui/viewer_settings';
 import {AutomaticallyFocusedElement} from 'neuroglancer/util/automatic_focus';
 import {TrackableRGB} from 'neuroglancer/util/color';
 import {Borrowed, Owned, RefCounted} from 'neuroglancer/util/disposable';
 import {removeFromParent} from 'neuroglancer/util/dom';
-import {registerActionListener} from 'neuroglancer/util/event_action_map';
+import {ActionEvent, registerActionListener} from 'neuroglancer/util/event_action_map';
 import {vec3} from 'neuroglancer/util/geom';
 import {parseFixedLengthArray, verifyFinitePositiveFloat, verifyObject, verifyOptionalObjectProperty, verifyString} from 'neuroglancer/util/json';
 import {EventActionMap, KeyboardEventBinder} from 'neuroglancer/util/keyboard_bindings';
@@ -308,6 +309,7 @@ export class Viewer extends RefCounted implements ViewerState {
       new TrackableDataSelectionState(this.coordinateSpace, this.layerSelectedValues));
   selectedStateServer = new TrackableValue<string>('', verifyString);
   layerListPanelState = new LayerListPanelState();
+  toolBinder = this.registerDisposer(new ToolBinder());
 
   resetInitiated = new NullarySignal();
 
@@ -422,7 +424,7 @@ export class Viewer extends RefCounted implements ViewerState {
     this.layerSpecification = new TopLevelLayerListSpecification(
         this.display, this.dataSourceProvider, this.layerManager, this.chunkManager,
         this.selectionDetailsState, this.selectedLayer, this.navigationState.coordinateSpace,
-        this.navigationState.pose.position);
+        this.navigationState.pose.position, this.toolBinder);
 
     this.registerDisposer(display.updateStarted.add(() => {
       this.onUpdateDisplay();
@@ -535,7 +537,7 @@ export class Viewer extends RefCounted implements ViewerState {
     }
 
     const annotationToolStatus =
-        this.registerDisposer(new AnnotationToolStatusWidget(this.selectedLayer));
+        this.registerDisposer(new AnnotationToolStatusWidget(this.selectedLayer, this.toolBinder));
     topRow.appendChild(annotationToolStatus.element);
     this.registerDisposer(new ElementVisibilityFromTrackableBoolean(
         this.uiControlVisibility.showAnnotationToolStatus, annotationToolStatus.element));
@@ -701,6 +703,8 @@ export class Viewer extends RefCounted implements ViewerState {
               ['Cross section view', inputEventBindings.sliceView],
               ['3-D projection view', inputEventBindings.perspectiveView]
             ],
+            this.layerManager,
+            this.toolBinder,
         );
       },
     }));
@@ -731,7 +735,7 @@ export class Viewer extends RefCounted implements ViewerState {
     this.registerDisposer(new AutomaticallyFocusedElement(element));
   }
 
-  bindAction(action: string, handler: () => void) {
+  bindAction<Data>(action: string, handler: (event: ActionEvent<Data>) => void) {
     this.registerDisposer(registerActionListener(this.element, action, handler));
   }
 
@@ -747,7 +751,7 @@ export class Viewer extends RefCounted implements ViewerState {
    * Called once by the constructor to register the action listeners.
    */
   private registerActionListeners() {
-    for (const action of ['recolor', 'clear-segments', ]) {
+    for (const action of ['recolor', 'clear-segments', 'toggle-base-segment-coloring']) {
       this.bindAction(action, () => {
         this.layerManager.invokeAction(action);
         this.closeSelectionTab && this.closeSelectionTab();
@@ -785,6 +789,13 @@ export class Viewer extends RefCounted implements ViewerState {
       });
     }
 
+    for (let i = 0; i < 26; ++i) {
+      const uppercase = String.fromCharCode(65 + i);
+      this.bindAction(`tool-${uppercase}`, () => {
+        this.activateTool(uppercase);
+      });
+    }
+
     this.bindAction('annotate', () => {
       const selectedLayer = this.selectedLayer.layer;
       if (selectedLayer === undefined) {
@@ -809,6 +820,17 @@ export class Viewer extends RefCounted implements ViewerState {
 
   toggleHelpPanel() {
     this.helpPanelState.location.visible = !this.helpPanelState.location.visible;
+  }
+
+  private toolInputEventMapBinder = (inputEventMap: EventActionMap, context: RefCounted) => {
+    context.registerDisposer(
+          this.inputEventBindings.sliceView.addParent(inputEventMap, Number.POSITIVE_INFINITY));
+    context.registerDisposer(this.inputEventBindings.perspectiveView.addParent(
+          inputEventMap, Number.POSITIVE_INFINITY));
+  };
+
+  activateTool(uppercase: string) {
+    this.toolBinder.activate(uppercase, this.toolInputEventMapBinder);
   }
 
   editJsonState() {
