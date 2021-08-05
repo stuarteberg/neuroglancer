@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright 2016 Google Inc.
+ * Copyright 2020 Google Inc.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,27 +14,7 @@
  * limitations under the License.
  */
 
-#statusContainer {
-  position: absolute;
-  bottom: 0px;
-  z-index: 100;
-  background-color: #808080;
-  color: white;
-  margin: 0px;
-  padding: 0px;
-  font: 10pt sans-serif;
-}
+import {NggraphDataSource} from 'neuroglancer/datasource/nggraph/frontend';
+import {registerProvider} from 'neuroglancer/datasource/default_provider';
 
-#statusContainer li {
-  width: 100vw;
-  max-height: 25vh;
-  overflow-y: auto;
-}
-
-.neuroglancer-status-header {
-  display: inline-block;
-  font: 10pt sans-serif;
-  font-weight: bold;
-  background-color: #333;
-  padding: 2px;
-}
+registerProvider('nggraph', () => new NggraphDataSource());

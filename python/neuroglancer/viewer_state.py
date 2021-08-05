@@ -192,6 +192,12 @@ class HideSegmentZeroTool(Tool):
 
 
 @export_tool
+class BaseSegmentColoringTool(Tool):
+    __slots__ = ()
+    TOOL_TYPE = 'baseSegmentColoring'
+
+
+@export_tool
 class IgnoreNullVisibleSetTool(Tool):
     __slots__ = ()
     TOOL_TYPE = 'ignoreNullVisibleSet'
@@ -256,6 +262,18 @@ class ShaderControlTool(Tool):
     __slots__ = ()
     TOOL_TYPE = 'shaderControl'
     control = wrapped_property('control', text_type)
+
+
+@export_tool
+class MergeSegmentsTool(Tool):
+    __slots__ = ()
+    TOOL_TYPE = 'mergeSegments'
+
+
+@export_tool
+class SplitSegmentsTool(Tool):
+    __slots__ = ()
+    TOOL_TYPE = 'splitSegments'
 
 
 @export
