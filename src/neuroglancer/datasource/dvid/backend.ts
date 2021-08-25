@@ -168,12 +168,17 @@ export function parseAnnotation(entry: any): DVIDAnnotation|null {
 
 @registerSharedObject() //
 export class DVIDAnnotationGeometryChunkSource extends (DVIDSource(AnnotationGeometryChunkSourceBackend, AnnotationChunkSourceParameters)) {
-  private getElementsPath() {
-    return `/${this.parameters.dataInstanceKey}/elements`;
+  // private getElementsPath() {
+  //   return `/${this.parameters.dataInstanceKey}/elements`;
+  // }
+
+  // Use block API for better performance
+  private getBlocksPath() {
+    return `/${this.parameters.dataInstanceKey}/blocks`;
   }
 
   private getPath(position: ArrayLike<number>, size: ArrayLike<number>) {
-    return `${this.getElementsPath()}/${size[0]}_${size[1]}_${size[2]}/${position[0]}_${position[1]}_${position[2]}`;
+    return `${this.getBlocksPath()}/${size[0]}_${size[1]}_${size[2]}/${position[0]}_${position[1]}_${position[2]}`;
   }
 
   async download(chunk: AnnotationGeometryChunk, cancellationToken: CancellationToken) {
@@ -181,6 +186,7 @@ export class DVIDAnnotationGeometryChunkSource extends (DVIDSource(AnnotationGeo
     if (chunk.source.spec.upperChunkBound[0] <= chunk.source.spec.lowerChunkBound[0]) {
       return Promise.resolve(parseAnnotations(this, chunk, [], parameters.properties, true));
     }
+    console.log(this.parameters);
     const chunkDataSize = this.parameters.chunkDataSize;
     const chunkPosition = chunk.chunkGridPosition.map((x, index) => x * chunkDataSize[index]);
     // const chunkPosition = vec3.multiply(vec3.create(), chunk.chunkGridPosition, chunkDataSize);
@@ -282,13 +288,20 @@ export class DVIDAnnotationGeometryChunkSource extends (DVIDSource(AnnotationGeo
 
 function parseAnnotations(
   source: DVIDAnnotationSource|DVIDAnnotationGeometryChunkSource,
-  chunk: AnnotationGeometryChunk | AnnotationSubsetGeometryChunk, responses: any[],
+  chunk: AnnotationGeometryChunk | AnnotationSubsetGeometryChunk, responses: any[] | {[key: string]: any[]},
   propSpec: AnnotationPropertySpec[], emittingAddSignal: boolean) {
 
   const annotationPropertySerializer = new AnnotationPropertySerializer(3, propSpec);
   const serializer = new AnnotationSerializer(annotationPropertySerializer);
   if (responses) {
-    responses.forEach((response) => {
+    let itemList = [];
+    if (!Array.isArray(responses)) {
+      itemList = Object.keys(responses).reduce((acc, key) => [...acc, ...responses[key]], []);
+    } else {
+      itemList = responses;
+    }
+
+    itemList.forEach((response) => {
       if (response) {
         try {
           let annotation = parseAnnotation(response);

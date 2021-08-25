@@ -36,7 +36,7 @@ import {StatusMessage} from 'neuroglancer/status';
 import {transposeNestedArrays} from 'neuroglancer/util/array';
 import {applyCompletionOffset, getPrefixMatchesWithDescriptions} from 'neuroglancer/util/completion';
 import {mat4, vec3} from 'neuroglancer/util/geom';
-import {parseArray, parseFixedLengthArray, parseIntVec, parseQueryStringParameters, verifyFinitePositiveFloat, verifyMapKey, verifyObject, verifyObjectAsMap, verifyObjectProperty, verifyPositiveInt, verifyString, verifyStringArray, verifyFiniteNonNegativeFloat} from 'neuroglancer/util/json';
+import {parseArray, parseFixedLengthArray, parseIntVec, parseQueryStringParameters, verifyFinitePositiveFloat, verifyMapKey, verifyObject, verifyObjectAsMap, verifyObjectProperty, verifyString, verifyStringArray, verifyNonNegativeInt, verifyFloat} from 'neuroglancer/util/json';
 import {VolumeInfo, MultiscaleVolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {MultiscaleAnnotationSource, AnnotationGeometryChunkSource} from 'neuroglancer/annotation/frontend_source';
 import { makeSliceViewChunkSpecification } from 'neuroglancer/sliceview/base';
@@ -102,7 +102,7 @@ export class VolumeDataInstanceInfo extends DataInstanceInfo {
     let instSet = new Set<string>(instanceNames);
     if (encoding === VolumeChunkEncoding.COMPRESSED_SEGMENTATIONARRAY) {
       // retrieve maximum downres level
-      let maxdownreslevel = verifyObjectProperty(extended, 'MaxDownresLevel', verifyPositiveInt);
+      let maxdownreslevel = verifyObjectProperty(extended, 'MaxDownresLevel', verifyNonNegativeInt);
       this.numLevels = maxdownreslevel + 1;
     } else {
       // labelblk does not have explicit datatype support for multiscale but
@@ -236,26 +236,74 @@ function getInstanceTags(dataInfo: any) {
   return verifyObjectProperty(baseInfo, 'Tags', verifyObject);
 }
 
-function getVolumeInfoResponseFromTags(tags: any) {
-  let MaxDownresLevel = parseInt(verifyObjectProperty(tags, 'MaxDownresLevel', verifyString));
-  let MaxPoint = JSON.parse(verifyObjectProperty(tags, "MaxPoint", verifyString));
-  let MinPoint = JSON.parse(verifyObjectProperty(tags, "MinPoint", verifyString));
-  let VoxelSize = JSON.parse(verifyObjectProperty(tags, "VoxelSize", verifyString));
+function getVolumeInfoResponseFromTags(tags: any, defaultObj: any) {
+  const defaultExtended = (defaultObj && defaultObj.Extended) || {};
+  let { MaxDownresLevel, MaxPoint, MinPoint, VoxelSize, BlockSize } = defaultExtended;
 
+  try {
+    if (tags.MaxDownresLevel && typeof tags.MaxDownresLevel === 'string') {
+      MaxDownresLevel = parseInt(verifyObjectProperty(tags, 'MaxDownresLevel', verifyString));
+      if (MaxDownresLevel < 0) {
+        MaxDownresLevel = defaultExtended.MaxDownresLevel;
+      }
+    } else if (typeof tags.MaxDownresLevel === 'number') {
+      MaxDownresLevel = verifyObjectProperty(tags, 'MaxDownresLevel', verifyNonNegativeInt);;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    if (tags.MaxPoint && typeof tags.MaxPoint === 'string') {
+      MaxPoint = JSON.parse(verifyObjectProperty(tags, 'MaxPoint', verifyString));
+    } else if (Array.isArray(tags.MaxPoint) && tags.MaxPoint.length === 3) {
+      MaxPoint = tags.MaxPoint;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    if (tags.MinPoint && typeof tags.MinPoint === 'string') {
+      MinPoint = JSON.parse(verifyObjectProperty(tags, "MinPoint", verifyString));
+    } else if (Array.isArray(tags.MinPoint) && tags.MinPoint.length === 3) {
+      MinPoint = tags.MinPoint;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    if (tags.VoxelSize && typeof tags.VoxelSize === 'string') {
+      VoxelSize = JSON.parse(verifyObjectProperty(tags, "VoxelSize", verifyString));
+    } else if (Array.isArray(tags.VoxelSize) && tags.VoxelSize.length === 3) {
+      VoxelSize = tags.VoxelSize;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    if (tags.BlockSize && typeof tags.BlockSize === 'string') {
+      BlockSize = JSON.parse(verifyObjectProperty(tags, "BlockSize", verifyString));
+    } else if (Array.isArray(tags.BlockSize) && tags.BlockSize.length === 3) {
+      BlockSize = tags.BlockSize;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const defaultBase = defaultObj && defaultObj.Base;
   let response: any = {
-    Base: {
-    },
+    Base: defaultBase || {},
     Extended: {
       VoxelSize,
       MinPoint,
       MaxPoint,
-      MaxDownresLevel
+      MaxDownresLevel,
+      BlockSize,
     }
   };
-
-  if ('BlockSize' in tags) {
-    response.BlockSize = JSON.parse(verifyObjectProperty(tags, "BlockSize", verifyString));
-  }
 
   return response;
 }
@@ -276,28 +324,24 @@ export class AnnotationDataInstanceInfo extends DataInstanceInfo {
 
     this.numLevels = 1;
 
-    let { extended } = this;
-
-    if ('MaxDownresLevel' in extended) {
-      // retrieve maximum downres level
-      let maxdownreslevel = verifyObjectProperty(extended, 'MaxDownresLevel', verifyPositiveInt);
-      this.numLevels = maxdownreslevel + 1;
+    const info = getVolumeInfoResponseFromTags(this.tags, obj);
+    if (typeof info.Extended.MaxDownresLevel === 'number') {
+      this.numLevels = info.Extended.MaxDownresLevel + 1;
     }
 
+    const extended = info.Extended;
     this.voxelSize = verifyObjectProperty(
       extended, 'VoxelSize',
       x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
     this.lowerVoxelBound = verifyObjectProperty(
       extended, 'MinPoint',
-      x => parseFixedLengthArray(vec3.create(), x, verifyFiniteNonNegativeFloat));
+      x => parseFixedLengthArray(vec3.create(), x, verifyFloat));
     this.upperVoxelBoundInclusive = verifyObjectProperty(
       extended, 'MaxPoint',
+      x => parseFixedLengthArray(vec3.create(), x, verifyFloat));
+    this.blockSize = verifyObjectProperty(
+      extended, 'BlockSize',
       x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
-    if ('BlockSize' in extended) {
-      this.blockSize = verifyObjectProperty(
-        extended, 'BlockSize',
-        x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
-    }
   }
 }
 
@@ -311,7 +355,7 @@ export function parseDataInstanceFromRepoInfo(
     if (syncedLabel) {
       dataInstance = dataInstanceObjs[syncedLabel];
     } else {
-      dataInstance = getVolumeInfoResponseFromTags(getInstanceTags(dataInstance));
+      dataInstance = getVolumeInfoResponseFromTags(getInstanceTags(dataInstance), dataInstance);
     }
 
     return new AnnotationDataInstanceInfo(dataInstance, name, baseInfo);
@@ -477,7 +521,7 @@ class DvidMultiscaleVolumeChunkSource extends MultiscaleVolumeChunkSource {
   }
 }
 
-const urlPattern = /^((?:http|https):\/\/[^\/]+)\/([^\/]+)\/([^\/]+)(\?.*)?$/;
+const urlPattern = /^((?:http|https):\/\/[^\/]+)\/([^\/]+)\/([^\/\?]+)(\?.*)?$/;
 
 function getDefaultAuthServer(baseUrl: string) {
   if (baseUrl.startsWith('https')) {
@@ -503,6 +547,10 @@ function parseSourceUrl(url: string): DVIDSourceParameters {
   const queryString = match[4];
   if (queryString && queryString.length > 1) {
     const parameters = parseQueryStringParameters(queryString.substring(1));
+    if (parameters.usertag === 'true') {
+      sourceParameters.usertag = true;
+    }
+
     if (parameters.user) {
       sourceParameters.user = parameters.user;
     }
@@ -637,7 +685,12 @@ async function getAnnotationChunkSource(options: GetDataSourceOptions, sourcePar
     multiscaleVolumeInfo
   });
 
-  let multiscaleVolumeInfo = new MultiscaleVolumeInfo(dataInstanceInfo.obj, 'dvid');
+  let { obj: dataObj } = dataInstanceInfo;
+  if (sourceParameters.tags) {
+    dataObj = getVolumeInfoResponseFromTags(sourceParameters.tags, dataObj);
+  }
+
+  let multiscaleVolumeInfo = new MultiscaleVolumeInfo(dataObj, 'dvid');
 
   return getChunkSource(multiscaleVolumeInfo, sourceParameters);
 }
@@ -780,6 +833,9 @@ export function getDataSource(options: GetDataSourceOptions): Promise<DataSource
             ...sourceParameters
           };
 
+          if (dataInstanceInfo.blockSize) {
+            annotationSourceParameters.chunkDataSize = dataInstanceInfo.blockSize;
+          }
           annotationSourceParameters.tags = dataInstanceInfo.tags;
           annotationSourceParameters.syncedLabel = getSyncedLabel({ Base: dataInstanceInfo.base.obj });
           annotationSourceParameters.properties = [{
