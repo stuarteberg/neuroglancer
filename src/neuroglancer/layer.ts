@@ -68,6 +68,8 @@ export interface UserLayerSelectionState {
   localCoordinateSpace: CoordinateSpace|undefined;
 
   annotationId: string|undefined;
+  annotationType: AnnotationType|undefined;
+  annotationSerialized: Uint8Array|undefined;
   annotationSourceIndex: number|undefined;
   annotationSubsource: string|undefined;
   annotationPartIndex: number|undefined;
@@ -114,6 +116,8 @@ export class UserLayer extends RefCounted {
     state.localPosition = kEmptyFloat32Vec;
     state.localCoordinateSpace = undefined;
     state.annotationId = undefined;
+    state.annotationType = undefined;
+    state.annotationSerialized = undefined;
     state.annotationSourceIndex = undefined;
     state.annotationSubsource = undefined;
     state.annotationPartIndex = undefined;
@@ -209,6 +213,8 @@ export class UserLayer extends RefCounted {
       dest.localPosition.set(curLocalPosition);
     }
     dest.annotationId = source.annotationId;
+    dest.annotationType = source.annotationType;
+    dest.annotationSerialized = source.annotationSerialized;
     dest.annotationSourceIndex = source.annotationSourceIndex;
     dest.annotationSubsource = source.annotationSubsource;
     dest.annotationPartIndex = source.annotationPartIndex;
@@ -354,7 +360,8 @@ export class UserLayer extends RefCounted {
     });
     const legacyTransform = verifyObjectProperty(
         layerSpec, TRANSFORM_JSON_KEY, coordinateTransformSpecificationFromLegacyJson);
-    specs.push(...this.getLegacyDataSourceSpecifications(legacySpec, layerSpec, legacyTransform, specs));
+    specs.push(
+        ...this.getLegacyDataSourceSpecifications(legacySpec, layerSpec, legacyTransform, specs));
     specs = specs.filter(spec => spec.url);
     if (specs.length === 0) {
       specs.push(makeEmptyDataSourceSpecification());
@@ -1674,7 +1681,7 @@ export class LinkedLayerGroup extends RefCounted implements Trackable {
     if (otherUserLayer === this.layer) return;
     if (this.root_ === otherUserLayer) return;
     if (this.root_ !== this.layer) {
-      this.isolate(/*notifyChanged=*/ false);
+      this.isolate(/*notifyChanged=*/false);
     }
     const {getGroup} = this;
     const newRoot = getGroup(otherUserLayer).root_;
@@ -1687,7 +1694,7 @@ export class LinkedLayerGroup extends RefCounted implements Trackable {
   }
 
   disposed() {
-    this.isolate(/*notifyChanged=*/ false);
+    this.isolate(/*notifyChanged=*/false);
   }
 }
 

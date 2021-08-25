@@ -826,6 +826,10 @@ export class AnnotationSource extends RefCounted implements AnnotationSourceSign
     this.annotationPropertySerializer = new AnnotationPropertySerializer(rank, properties);
   }
 
+  hasNonSerializedProperties() {
+    return true;
+  }
+
   add(annotation: Annotation, commit: boolean = true): AnnotationReference {
     this.ensureUpdated();
     if (!annotation.id) {

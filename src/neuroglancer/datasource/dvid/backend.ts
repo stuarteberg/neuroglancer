@@ -186,10 +186,8 @@ export class DVIDAnnotationGeometryChunkSource extends (DVIDSource(AnnotationGeo
     if (chunk.source.spec.upperChunkBound[0] <= chunk.source.spec.lowerChunkBound[0]) {
       return Promise.resolve(parseAnnotations(this, chunk, [], parameters.properties, true));
     }
-    console.log(this.parameters);
     const chunkDataSize = this.parameters.chunkDataSize;
     const chunkPosition = chunk.chunkGridPosition.map((x, index) => x * chunkDataSize[index]);
-    // const chunkPosition = vec3.multiply(vec3.create(), chunk.chunkGridPosition, chunkDataSize);
     let dataInstance = new DVIDInstance(parameters.baseUrl, parameters.nodeKey);
     return makeRequestWithCredentials(
       this.credentialsProvider,
