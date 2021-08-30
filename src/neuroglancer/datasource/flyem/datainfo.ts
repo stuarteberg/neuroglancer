@@ -26,11 +26,11 @@ export class VolumeInfo {
   voxelSize: vec3;
   lowerVoxelBound: vec3;
   upperVoxelBound: vec3;
+  blockSize: vec3;
   numLevels = 1;
   constructor(obj: any, format: string) {
     try {
       verifyObject(obj);
-      this.numChannels = 1;
       if (format === 'dvid') { //DVID like volume info
         let extended = verifyObjectProperty(obj, 'Extended', verifyObject);
         if (extended.MaxDownresLevel) {
@@ -41,6 +41,7 @@ export class VolumeInfo {
         this.voxelSize = verifyObjectProperty(extended, 'VoxelSize', x => parseIntVec(vec3.create(), x));
         this.upperVoxelBound = verifyObjectProperty(extended, 'MaxPoint', x => parseIntVec(vec3.create(), x.map((a:number) => {return ++a;})));
         this.lowerVoxelBound = verifyObjectProperty(extended, 'MinPoint', x => parseIntVec(vec3.create(), x));
+        this.blockSize = verifyObjectProperty(extended, 'BlockSize', x => parseIntVec(vec3.create(), x));
       } else if (format === 'gs') { //gs info
         verifyObject(obj);
         const scaleInfos = verifyObjectProperty(obj, 'scales', x => x);
@@ -54,6 +55,8 @@ export class VolumeInfo {
         const boxSize = verifyObjectProperty(
           baseScale, 'size', x => parseIntVec(vec3.create(), x));
         this.upperVoxelBound = vec3.add(vec3.create(), boxSize, this.lowerVoxelBound);
+        // FIXME: uses chunk_sizes to determine block size
+        this.blockSize = vec3.fromValues(64, 64, 64);
       } else {
         throw new Error('unrecognized volume info');
       }
@@ -65,25 +68,34 @@ export class VolumeInfo {
 
 export class MultiscaleVolumeInfo {
   scales: VolumeInfo[];
-  numChannels: number;
-  constructor(volumeInfoResponse: any, format: string) {
+
+  get numChannels() {
+    if (this.scales.length === 0) {
+      return 0;
+    }
+
+    return this.scales[0].numChannels;
+  }
+
+  constructor(baseVolumeInfo: VolumeInfo) {
     try {
-      verifyObject(volumeInfoResponse);
+      // verifyObject(volumeInfoResponse);
       this.scales = [];
-      let baseVolumeInfo = new VolumeInfo(volumeInfoResponse, format);
+      // let baseVolumeInfo = new VolumeInfo(volumeInfoResponse, format);
       this.scales.push(baseVolumeInfo);
       let lastVoxelSize = baseVolumeInfo.voxelSize;
+      let lastLowerBounds = baseVolumeInfo.lowerVoxelBound;
       let lastUpperBounds = baseVolumeInfo.upperVoxelBound;
       for (let level = 1; level < baseVolumeInfo.numLevels; ++level) {
         let volumeInfo:VolumeInfo = {...baseVolumeInfo};
-        volumeInfo.voxelSize = vec3.multiply(vec3.create(), lastVoxelSize, vec3.fromValues(2, 2, 2 ));
+        volumeInfo.voxelSize = vec3.multiply(vec3.create(), lastVoxelSize, vec3.fromValues(2, 2, 2));
         lastVoxelSize = volumeInfo.voxelSize;
         volumeInfo.upperVoxelBound = vec3.ceil(vec3.create(), vec3.divide(vec3.create(), lastUpperBounds, vec3.fromValues(2, 2, 2)));
         lastUpperBounds = volumeInfo.upperVoxelBound;
+        volumeInfo.lowerVoxelBound = vec3.ceil(vec3.create(), vec3.divide(vec3.create(), lastLowerBounds, vec3.fromValues(2, 2, 2)));
+        lastLowerBounds = volumeInfo.lowerVoxelBound;
         this.scales.push(volumeInfo);
       }
-      let baseScale = this.scales[0];
-      this.numChannels = this.numChannels = baseScale.numChannels;
     } catch (parseError) {
       throw new Error(
           `Failed to parse multiscale volume specification: ${parseError.message}`);

@@ -17,7 +17,7 @@
  import {vec3} from 'neuroglancer/util/geom';
  import { AnnotationPropertySpec } from 'src/neuroglancer/annotation';
 
- const annotationChunkDataSize = vec3.fromValues(64, 64, 64);
+ const annotationChunkDataSize = vec3.fromValues(128, 128, 128);
 
 export enum VolumeChunkEncoding {
   JPEG,
@@ -54,12 +54,11 @@ export class AnnotationSourceParametersBase extends DVIDSourceParameters {
   properties: AnnotationPropertySpec[];
   syncedLabel?: string;
   readonly?: boolean;
-  tags?: any;
   schema?: any;
 }
 
 export class AnnotationSourceParameters extends AnnotationSourceParametersBase {
-  static RPC_ID = 'dvid/Annotation';
+  static RPC_ID = 'dvid/AnnotationSource';
 }
 
 export class AnnotationChunkSourceParameters extends AnnotationSourceParametersBase {

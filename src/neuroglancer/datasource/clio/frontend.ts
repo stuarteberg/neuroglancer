@@ -62,9 +62,10 @@ async function getAnnotationDataInfo(parameters: AnnotationSourceParameters): Pr
   } else {
     return Promise.resolve({
       numChannels: 1,
-      voxelSize: vec3.fromValues(32, 32, 32),
+      voxelSize: vec3.fromValues(8, 8, 8),
       lowerVoxelBound: vec3.fromValues(0, 0, 0),
       upperVoxelBound: vec3.fromValues(50000, 50000, 50000),
+      blockSize: vec3.fromValues(64, 64, 64),
       numLevels: 1
     });
     // throw Error('No volume information provided.');

@@ -36,7 +36,7 @@ import {StatusMessage} from 'neuroglancer/status';
 import {transposeNestedArrays} from 'neuroglancer/util/array';
 import {applyCompletionOffset, getPrefixMatchesWithDescriptions} from 'neuroglancer/util/completion';
 import {mat4, vec3} from 'neuroglancer/util/geom';
-import {parseArray, parseFixedLengthArray, parseIntVec, parseQueryStringParameters, verifyFinitePositiveFloat, verifyMapKey, verifyObject, verifyObjectAsMap, verifyObjectProperty, verifyString, verifyStringArray, verifyNonNegativeInt, verifyFloat} from 'neuroglancer/util/json';
+import {parseArray, parseQueryStringParameters, verifyMapKey, verifyObject, verifyObjectAsMap, verifyObjectProperty, verifyString, verifyStringArray, verifyNonNegativeInt} from 'neuroglancer/util/json';
 import {VolumeInfo, MultiscaleVolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {MultiscaleAnnotationSource, AnnotationGeometryChunkSource} from 'neuroglancer/annotation/frontend_source';
 import { makeSliceViewChunkSpecification } from 'neuroglancer/sliceview/base';
@@ -57,6 +57,10 @@ export class DataInstanceBaseInfo {
     return this.obj['Compression'];
   }
 
+  get tags() {
+    return this.obj['Tags'];
+  }
+
   constructor(public obj: any) {
     verifyObject(obj);
     verifyObjectProperty(obj, 'TypeName', verifyString);
@@ -64,13 +68,31 @@ export class DataInstanceBaseInfo {
 }
 
 export class DataInstanceInfo {
-  lowerVoxelBound: vec3;
-  upperVoxelBoundInclusive: vec3;
-  voxelSize: vec3;
-  blockSize: vec3;
-  numLevels: number;
+  volumeInfo: VolumeInfo;
 
-  constructor(public obj: any, public name: string, public base: DataInstanceBaseInfo) {}
+  get lowerVoxelBound() {
+    return this.volumeInfo.lowerVoxelBound;
+  }
+
+  get upperVoxelBound() {
+    return this.volumeInfo.upperVoxelBound;
+  }
+
+  get blockSize() {
+    return this.volumeInfo.blockSize;
+  }
+
+  get voxelSize() {
+    return this.volumeInfo.voxelSize;
+  }
+
+  get numLevels() {
+    return this.volumeInfo.numLevels;
+  }
+
+  constructor(obj: any, public name: string, public base: DataInstanceBaseInfo) {
+    this.volumeInfo = new VolumeInfo(getVolumeInfoResponseFromTags(base.tags, obj), 'dvid');
+  }
 }
 
 class DVIDVolumeChunkSource extends
@@ -97,19 +119,14 @@ export class VolumeDataInstanceInfo extends DataInstanceInfo {
       throw new Error(
           'Expected Extended.Values property to have length >= 1, but received: ${JSON.stringify(extendedValues)}.');
     }
-    this.numLevels = 1;
 
     let instSet = new Set<string>(instanceNames);
-    if (encoding === VolumeChunkEncoding.COMPRESSED_SEGMENTATIONARRAY) {
-      // retrieve maximum downres level
-      let maxdownreslevel = verifyObjectProperty(extended, 'MaxDownresLevel', verifyNonNegativeInt);
-      this.numLevels = maxdownreslevel + 1;
-    } else {
+    if (encoding !== VolumeChunkEncoding.COMPRESSED_SEGMENTATIONARRAY) {
       // labelblk does not have explicit datatype support for multiscale but
       // by convention different levels are specified with unique
       // instances where levels are distinguished by the suffix '_LEVELNUM'
-      while (instSet.has(name + '_' + this.numLevels.toString())) {
-        this.numLevels += 1;
+      while (instSet.has(name + '_' + this.volumeInfo.numLevels.toString())) {
+        this.volumeInfo.numLevels += 1;
       }
     }
 
@@ -128,16 +145,6 @@ export class VolumeDataInstanceInfo extends DataInstanceInfo {
 
     this.dataType =
         verifyObjectProperty(extendedValues[0], 'DataType', x => verifyMapKey(x, serverDataTypes));
-    this.voxelSize = verifyObjectProperty(
-        extended, 'VoxelSize',
-        x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
-    this.blockSize = verifyObjectProperty(
-        extended, 'BlockSize',
-        x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
-    this.lowerVoxelBound =
-        verifyObjectProperty(extended, 'MinPoint', x => parseIntVec(vec3.create(), x));
-    this.upperVoxelBoundInclusive =
-        verifyObjectProperty(extended, 'MaxPoint', x => parseIntVec(vec3.create(), x));
   }
 
   get volumeType() {
@@ -165,7 +172,7 @@ export class VolumeDataInstanceInfo extends DataInstanceInfo {
         let lowerVoxelNotAligned = Math.floor(this.lowerVoxelBound[i] * invDownsampleFactor);
         // adjust min to be a multiple of blocksize
         lowerVoxelBound[i] = lowerVoxelNotAligned - (lowerVoxelNotAligned % blocksize);
-        let upperVoxelNotAligned = Math.ceil((this.upperVoxelBoundInclusive[i] + 1) * invDownsampleFactor);
+        let upperVoxelNotAligned = Math.ceil(this.upperVoxelBound[i] * invDownsampleFactor);
         upperVoxelBound[i] = upperVoxelNotAligned;
         // adjust max to be a multiple of blocksize
         if ((upperVoxelNotAligned % blocksize) !== 0) {
@@ -230,13 +237,11 @@ function getSyncedLabel(dataInfo: any): string {
   }
 }
 
-function getInstanceTags(dataInfo: any) {
-  let baseInfo = verifyObjectProperty(dataInfo, 'Base', verifyObject);
-
-  return verifyObjectProperty(baseInfo, 'Tags', verifyObject);
-}
-
 function getVolumeInfoResponseFromTags(tags: any, defaultObj: any) {
+  if (!tags) {
+    return defaultObj;
+  }
+
   const defaultExtended = (defaultObj && defaultObj.Extended) || {};
   let { MaxDownresLevel, MaxPoint, MinPoint, VoxelSize, BlockSize } = defaultExtended;
 
@@ -297,6 +302,7 @@ function getVolumeInfoResponseFromTags(tags: any, defaultObj: any) {
   let response: any = {
     Base: defaultBase || {},
     Extended: {
+      ...defaultExtended,
       VoxelSize,
       MinPoint,
       MaxPoint,
@@ -309,11 +315,6 @@ function getVolumeInfoResponseFromTags(tags: any, defaultObj: any) {
 }
 
 export class AnnotationDataInstanceInfo extends DataInstanceInfo {
-
-  get extended() {
-    return verifyObjectProperty(this.obj, 'Extended', verifyObject);
-  }
-
   get tags() {
     return verifyObjectProperty(this.base.obj, 'Tags', verifyObject);
   }
@@ -321,50 +322,27 @@ export class AnnotationDataInstanceInfo extends DataInstanceInfo {
   constructor(
     obj: any, name: string, base: DataInstanceBaseInfo) {
     super(obj, name, base);
-
-    this.numLevels = 1;
-
-    const info = getVolumeInfoResponseFromTags(this.tags, obj);
-    if (typeof info.Extended.MaxDownresLevel === 'number') {
-      this.numLevels = info.Extended.MaxDownresLevel + 1;
-    }
-
-    const extended = info.Extended;
-    this.voxelSize = verifyObjectProperty(
-      extended, 'VoxelSize',
-      x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
-    this.lowerVoxelBound = verifyObjectProperty(
-      extended, 'MinPoint',
-      x => parseFixedLengthArray(vec3.create(), x, verifyFloat));
-    this.upperVoxelBoundInclusive = verifyObjectProperty(
-      extended, 'MaxPoint',
-      x => parseFixedLengthArray(vec3.create(), x, verifyFloat));
-    this.blockSize = verifyObjectProperty(
-      extended, 'BlockSize',
-      x => parseFixedLengthArray(vec3.create(), x, verifyFinitePositiveFloat));
   }
 }
 
-export function parseDataInstanceFromRepoInfo(
+function parseDataInstanceFromRepoInfo(
   dataInstanceObjs: any, name: string, instanceNames: Array<string>): DataInstanceInfo {
   verifyObject(dataInstanceObjs);
-  let dataInstance = dataInstanceObjs[name];
-  let baseInfo = verifyObjectProperty(dataInstance, 'Base', x => new DataInstanceBaseInfo(x));
+  let dataInstanceObj = dataInstanceObjs[name];
+  let baseInfo = verifyObjectProperty(dataInstanceObj, 'Base', x => new DataInstanceBaseInfo(x));
   if (baseInfo.typeName === 'annotation') {
-    let syncedLabel = getSyncedLabel(dataInstance);
+    let syncedLabel = getSyncedLabel(dataInstanceObj);
     if (syncedLabel) {
-      dataInstance = dataInstanceObjs[syncedLabel];
-    } else {
-      dataInstance = getVolumeInfoResponseFromTags(getInstanceTags(dataInstance), dataInstance);
+      dataInstanceObj = dataInstanceObjs[syncedLabel];
     }
 
-    return new AnnotationDataInstanceInfo(dataInstance, name, baseInfo);
+    return new AnnotationDataInstanceInfo(dataInstanceObj, name, baseInfo);
   } {
-    return parseDataInstance(dataInstance, name, instanceNames);
+    return parseDataInstance(dataInstanceObj, name, instanceNames);
   }
 }
 
-export function parseDataInstance(
+function parseDataInstance(
     obj: any, name: string, instanceNames: Array<string>): DataInstanceInfo {
   verifyObject(obj);
   let baseInfo = verifyObjectProperty(obj, 'Base', x => new DataInstanceBaseInfo(x));
@@ -559,9 +537,9 @@ function parseSourceUrl(url: string): DVIDSourceParameters {
   return sourceParameters;
 }
 
-function getAnnotationChunkDataSize(parameters: AnnotationSourceParameters, upperVoxelBound: vec3) {
+function getAnnotationChunkDataSize(parameters: AnnotationSourceParameters, lowerVoxelBound: vec3, upperVoxelBound: vec3) {
   if (parameters.usertag) {
-    return upperVoxelBound;
+    return vec3.sub(vec3.create(), upperVoxelBound, lowerVoxelBound);
   } else {
     return parameters.chunkDataSize;
   }
@@ -570,13 +548,14 @@ function getAnnotationChunkDataSize(parameters: AnnotationSourceParameters, uppe
 function makeAnnotationGeometrySourceSpecifications(multiscaleInfo: MultiscaleVolumeInfo, parameters: AnnotationSourceParameters) {
   const rank = 3;
 
-  let makeSpec = (scale: VolumeInfo) => {
-    const upperVoxelBound = scale.upperVoxelBound;
-    const chunkDataSize = getAnnotationChunkDataSize(parameters, upperVoxelBound);
+  let makeSpec = (volumeInfo: VolumeInfo) => {
+    const { lowerVoxelBound, upperVoxelBound } = volumeInfo;
+    const chunkDataSize = getAnnotationChunkDataSize(parameters, lowerVoxelBound, upperVoxelBound);
     let spec = makeSliceViewChunkSpecification({
       rank,
       chunkDataSize: Uint32Array.from(chunkDataSize),
-      upperVoxelBound: scale.upperVoxelBound
+      lowerVoxelBound,
+      upperVoxelBound
     });
 
     return { spec, chunkToMultiscaleTransform: mat4.create()};
@@ -605,6 +584,7 @@ export class DVIDAnnotationSource extends MultiscaleAnnotationSourceBase {
   key: any;
   readonly = false;
   private multiscaleVolumeInfo: MultiscaleVolumeInfo;
+  private chunkSources: SliceViewSingleResolutionSource<AnnotationGeometryChunkSource>[][];
 
   constructor(chunkManager: ChunkManager, options: {
     credentialsProvider: CredentialsProvider<DVIDToken>,
@@ -645,7 +625,7 @@ export class DVIDAnnotationSource extends MultiscaleAnnotationSourceBase {
       limit = 3;
     }
 
-    return sourceSpecifications.map(
+    this.chunkSources = sourceSpecifications.map(
       alternatives =>
         alternatives.map(({ spec, chunkToMultiscaleTransform }) => ({
           chunkSource: this.chunkManager.getChunkSource(DVIDAnnotationChunkSource, {
@@ -656,15 +636,20 @@ export class DVIDAnnotationSource extends MultiscaleAnnotationSourceBase {
           }),
           chunkToMultiscaleTransform
         })));
+
+    return this.chunkSources;
   }
 
   invalidateCache() {
     this.metadataChunkSource.invalidateCache();
+    /*
     for (let sources1 of this.getSources({
       multiscaleToViewTransform: new Float32Array(),
       displayRank: 1,
       modelChannelDimensionIndices: [],
     })) {
+      */
+    for (let sources1 of this.chunkSources) {
       for (let source of sources1) {
         source.chunkSource.invalidateCache();
       }
@@ -685,12 +670,14 @@ async function getAnnotationChunkSource(options: GetDataSourceOptions, sourcePar
     multiscaleVolumeInfo
   });
 
-  let { obj: dataObj } = dataInstanceInfo;
+  // let { obj: dataObj } = dataInstanceInfo;
+  /*
   if (sourceParameters.tags) {
     dataObj = getVolumeInfoResponseFromTags(sourceParameters.tags, dataObj);
   }
+  */
 
-  let multiscaleVolumeInfo = new MultiscaleVolumeInfo(dataObj, 'dvid');
+  let multiscaleVolumeInfo = new MultiscaleVolumeInfo(dataInstanceInfo.volumeInfo);
 
   return getChunkSource(multiscaleVolumeInfo, sourceParameters);
 }
@@ -699,7 +686,7 @@ async function getAnnotationSource(options: GetDataSourceOptions, sourceParamete
 
   const box: BoundingBox = {
     lowerBounds: new Float64Array(dataInstanceInfo.lowerVoxelBound),
-    upperBounds: Float64Array.from(dataInstanceInfo.upperVoxelBoundInclusive, x => x + 1)
+    upperBounds: Float64Array.from(dataInstanceInfo.upperVoxelBound)
   };
   const modelSpace = makeCoordinateSpace({
     rank: 3,
@@ -732,7 +719,7 @@ function getVolumeSource(options: GetDataSourceOptions, sourceParameters: DVIDSo
 
   const box: BoundingBox = {
     lowerBounds: new Float64Array(info.lowerVoxelBound),
-    upperBounds: Float64Array.from(info.upperVoxelBoundInclusive, x => x + 1)
+    upperBounds: Float64Array.from(info.upperVoxelBound)
   };
   const modelSpace = makeCoordinateSpace({
     rank: 3,
@@ -836,7 +823,7 @@ export function getDataSource(options: GetDataSourceOptions): Promise<DataSource
           if (dataInstanceInfo.blockSize) {
             annotationSourceParameters.chunkDataSize = dataInstanceInfo.blockSize;
           }
-          annotationSourceParameters.tags = dataInstanceInfo.tags;
+          // annotationSourceParameters.tags = dataInstanceInfo.tags;
           annotationSourceParameters.syncedLabel = getSyncedLabel({ Base: dataInstanceInfo.base.obj });
           annotationSourceParameters.properties = [{
             identifier: 'rendering_attribute',
