@@ -27,11 +27,12 @@ import {DropLayers, registerLayerBarDragLeaveHandler, registerLayerBarDropHandle
 import {animationFrameDebounce} from 'neuroglancer/util/animation_frame_debounce';
 import {Owned, RefCounted} from 'neuroglancer/util/disposable';
 import {removeFromParent} from 'neuroglancer/util/dom';
+import {makeCloseButton, makeRefreshButton} from 'neuroglancer/widget/close_button';
 import {preventDrag} from 'neuroglancer/util/drag_and_drop';
-import {makeCloseButton} from 'neuroglancer/widget/close_button';
 import {makeDeleteButton} from 'neuroglancer/widget/delete_button';
 import {makeIcon} from 'neuroglancer/widget/icon';
 import {PositionWidget} from 'neuroglancer/widget/position_widget';
+import {LoadedLayerDataSource} from 'neuroglancer/layer_data_source';
 
 
 class LayerWidget extends RefCounted {
@@ -72,6 +73,24 @@ class LayerWidget extends RefCounted {
     buttonContainer.className = 'neuroglancer-layer-item-button-container';
     const closeElement = makeCloseButton();
     closeElement.title = 'Remove layer from this layer group';
+    const refreshElement = makeRefreshButton();
+    refreshElement.title = 'Refresh data';
+    this.registerEventListener(refreshElement, 'click', (event: MouseEvent) => {
+      event.stopPropagation();
+      const layer = this.layer.layer;
+      if (layer && layer.dataSources && layer.dataSources[0].loadState) {
+        const { loadState } = layer.dataSources[0];
+        if (loadState instanceof LoadedLayerDataSource) {
+          const { dataSource } = loadState;
+          if (dataSource && dataSource.subsources[0] && dataSource.subsources[0].subsource) {
+            const { annotation } = dataSource.subsources[0].subsource;
+            if (annotation?.invalidateCache) {
+              annotation.invalidateCache();
+            }
+          }
+        }
+      }
+    });
     closeElement.addEventListener('click', (event: MouseEvent) => {
       if (this.panel.layerManager === this.panel.manager.rootLayers) {
         // The layer bar corresponds to a TopLevelLayerListSpecification.  That means there is just
@@ -103,6 +122,9 @@ class LayerWidget extends RefCounted {
     buttonContainer.appendChild(closeElement);
     buttonContainer.appendChild(deleteElement);
     element.appendChild(labelElement);
+    if (layer.layer?.allowingRefresh) {
+      element.appendChild(refreshElement);
+    }
     element.appendChild(valueContainer);
     const positionWidget = this.registerDisposer(new PositionWidget(
         layer.localPosition, layer.localCoordinateSpaceCombiner, {copyButton: false}));

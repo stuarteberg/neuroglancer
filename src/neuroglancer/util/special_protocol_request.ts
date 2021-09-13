@@ -46,6 +46,7 @@ export function parseSpecialUrl(url: string, credentialsManager: CredentialsMana
   const u = parseUrl(url);
   switch (u.protocol) {
     case 'gs':
+    case 'gs+json':
     case 'gs+xml':
       return {
         credentialsProvider: typeof NEUROGLANCER_PYTHON_INTEGRATION !== 'undefined' ?
@@ -120,6 +121,12 @@ export async function cancellableFetchSpecialOk<T>(
           `https://www.googleapis.com/storage/v1/b/${u.host}/o/` +
               `${encodeURIComponent(u.path.substring(1))}?alt=media&` +
               `neuroglancerOrigin=${encodeURIComponent(location.origin)}`,
+          init, transformResponse, cancellationToken);
+    case 'gs+json':
+      return fetchWithOAuth2Credentials(
+          credentialsProvider,
+          `https://storage.googleapis.com/storage/v1/b/${u.host}/o/${
+              encodeURIComponent(u.path.substring(1))}?alt=media`,
           init, transformResponse, cancellationToken);
     case 'gs+xml':
       return fetchWithOAuth2Credentials(

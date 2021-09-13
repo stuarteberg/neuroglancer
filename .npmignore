@@ -1,0 +1,10 @@
+python/*
+coverage/*
+examples/*
+testdata/*
+third_party/*
+ngauth_server/*
+dist/dev/*
+config/*
+*~
+

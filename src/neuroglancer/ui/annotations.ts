@@ -20,7 +20,7 @@
 
 import './annotations.css';
 
-import {Annotation, AnnotationId, AnnotationPropertySerializer, AnnotationReference, AnnotationSource, annotationToJson, AnnotationType, annotationTypeHandlers, AxisAlignedBoundingBox, Ellipsoid, formatNumericProperty, Line} from 'neuroglancer/annotation';
+import {Annotation, AnnotationId, AnnotationPropertySerializer, AnnotationReference, AnnotationSource, annotationToJson, AnnotationType, annotationTypeHandlers, AxisAlignedBoundingBox, Ellipsoid, formatNumericProperty, Line, Sphere} from 'neuroglancer/annotation';
 import {AnnotationDisplayState, AnnotationLayerState} from 'neuroglancer/annotation/annotation_layer_state';
 import {MultiscaleAnnotationSource} from 'neuroglancer/annotation/frontend_source';
 import {AnnotationLayer, PerspectiveViewAnnotationLayer, SliceViewAnnotationLayer, SpatiallyIndexedPerspectiveViewAnnotationLayer, SpatiallyIndexedSliceViewAnnotationLayer} from 'neuroglancer/annotation/renderlayer';
@@ -60,6 +60,8 @@ import {makeIcon} from 'neuroglancer/widget/icon';
 import {makeMoveToButton} from 'neuroglancer/widget/move_to_button';
 import {Tab} from 'neuroglancer/widget/tab_view';
 import {VirtualList, VirtualListSource} from 'neuroglancer/widget/virtual_list';
+import {FlyEMAnnotation} from '../datasource/flyem/annotation';
+import {globalViewerConfig} from 'neuroglancer/viewer';
 
 export class MergedAnnotationStates extends RefCounted implements
     WatchableValueInterface<readonly AnnotationLayerState[]> {
@@ -122,6 +124,7 @@ function getCenterPosition(center: Float32Array, annotation: Annotation) {
   switch (annotation.type) {
     case AnnotationType.AXIS_ALIGNED_BOUNDING_BOX:
     case AnnotationType.LINE:
+    case AnnotationType.SPHERE:
       vector.add(center, annotation.pointA, annotation.pointB);
       vector.scale(center, center, 0.5);
       break;
@@ -212,13 +215,15 @@ export class AnnotationLayerView extends Tab {
       }
       const source = state.source;
       const refCounted = new RefCounted();
-      if (source instanceof AnnotationSource) {
+      if (source instanceof AnnotationSource || source instanceof MultiscaleAnnotationSource) {
         refCounted.registerDisposer(
             source.childAdded.add((annotation) => this.addAnnotationElement(annotation, state)));
         refCounted.registerDisposer(source.childUpdated.add(
             (annotation) => this.updateAnnotationElement(annotation, state)));
         refCounted.registerDisposer(source.childDeleted.add(
             (annotationId) => this.deleteAnnotationElement(annotationId, state)));
+        refCounted.registerDisposer(source.childRefreshed.add(
+          () => this.clearAnnotationElement(state)));
       }
       refCounted.registerDisposer(state.transform.changed.add(this.forceUpdateView));
       newAttachedAnnotationStates.set(
@@ -324,6 +329,15 @@ export class AnnotationLayerView extends Tab {
       },
     });
     mutableControls.appendChild(lineButton);
+
+    const sphereButton = makeIcon({
+      text: annotationTypeHandlers[AnnotationType.SPHERE].icon,
+      title: 'Annotate Sphere',
+      onClick: () => {
+        this.layer.tool.value = new PlaceSphereTool(this.layer, {});
+      },
+    });
+    mutableControls.appendChild(sphereButton);
 
     const ellipsoidButton = makeIcon({
       text: annotationTypeHandlers[AnnotationType.ELLIPSOID].icon,
@@ -564,6 +578,28 @@ export class AnnotationLayerView extends Tab {
       length += info.annotations.length;
     }
     this.virtualListSource.length = length;
+  }
+
+  private clearAnnotationElement(state: AnnotationLayerState) {
+    if (!this.visible) {
+      this.updated = false;
+      return;
+    }
+    if (!this.updated) {
+      this.updateView();
+      return;
+    }
+    const info = this.attachedAnnotationStates.get(state);
+    if (info !== undefined) {
+      const index = info.annotations.length;
+      info.annotations = [];
+      info.idToIndex.clear();
+      this.listElements = [];
+      this.updateListLength();
+      this.virtualListSource.changed!.dispatch(
+          [{retainCount: 0, deleteCount: index, insertCount: 0}]);
+    }
+    this.resetOnUpdate();
   }
 
   private addAnnotationElement(annotation: Annotation, state: AnnotationLayerState) {
@@ -810,9 +846,11 @@ abstract class PlaceAnnotationTool extends LegacyTool {
 const ANNOTATE_POINT_TOOL_ID = 'annotatePoint';
 const ANNOTATE_LINE_TOOL_ID = 'annotateLine';
 const ANNOTATE_BOUNDING_BOX_TOOL_ID = 'annotateBoundingBox';
-const ANNOTATE_ELLIPSOID_TOOL_ID = 'annotateSphere';
+const ANNOTATE_ELLIPSOID_TOOL_ID = 'annotateEllipsoid';
+const ANNOTATE_SPHERE_TOOL_ID = 'annotateSphere'
 
 export class PlacePointTool extends PlaceAnnotationTool {
+  sourceSignalUpdated = false;
   trigger(mouseState: MouseSelectionState) {
     const {annotationLayer} = this;
     if (annotationLayer === undefined) {
@@ -830,8 +868,23 @@ export class PlacePointTool extends PlaceAnnotationTool {
         type: AnnotationType.POINT,
         properties: annotationLayer.source.properties.map(x => x.default),
       };
-      const reference = annotationLayer.source.add(annotation, /*commit=*/true);
-      this.layer.selectAnnotation(annotationLayer, reference.id, true);
+      const reference = annotationLayer.source.add(annotation, /*commit=*/ true);
+      if (annotationLayer.source instanceof MultiscaleAnnotationSource) {
+        if (!this.sourceSignalUpdated) {
+          annotationLayer.source.childAdded.add(
+            (annotation: Annotation) => {
+              // console.log('Annotation updated');
+              if ((<FlyEMAnnotation>annotation).source === undefined) {
+                this.layer.selectAnnotation(annotationLayer, annotation.id, true, !globalViewerConfig.expectingExternalUI);
+              }
+            }
+          );
+          this.sourceSignalUpdated = true;
+        }
+      } else {
+        this.layer.selectAnnotation(annotationLayer, reference.id, true);
+      }
+
       reference.dispose();
     }
   }
@@ -887,13 +940,13 @@ abstract class TwoStepAnnotationTool extends PlaceAnnotationTool {
           return;
         }
         state.annotationLayer.source.update(reference, newAnnotation);
-        this.layer.selectAnnotation(annotationLayer, reference.id, true);
+        this.layer.selectAnnotation(annotationLayer, reference.id, true, !globalViewerConfig.expectingExternalUI);
       };
 
       if (this.inProgressAnnotation === undefined) {
         const reference = annotationLayer.source.add(
-            this.getInitialAnnotation(mouseState, annotationLayer), /*commit=*/false);
-        this.layer.selectAnnotation(annotationLayer, reference.id, true);
+            this.getInitialAnnotation(mouseState, annotationLayer), /*commit=*/ false);
+        this.layer.selectAnnotation(annotationLayer, reference.id, true, !globalViewerConfig.expectingExternalUI);
         const mouseDisposer = mouseState.changed.add(updatePointB);
         const disposer = () => {
           mouseDisposer();
@@ -930,12 +983,12 @@ abstract class TwoStepAnnotationTool extends PlaceAnnotationTool {
 
 
 abstract class PlaceTwoCornerAnnotationTool extends TwoStepAnnotationTool {
-  annotationType: AnnotationType.LINE|AnnotationType.AXIS_ALIGNED_BOUNDING_BOX;
+  annotationType: AnnotationType.LINE|AnnotationType.AXIS_ALIGNED_BOUNDING_BOX|AnnotationType.SPHERE;
 
   getInitialAnnotation(mouseState: MouseSelectionState, annotationLayer: AnnotationLayerState):
       Annotation {
     const point = getMousePositionInAnnotationCoordinates(mouseState, annotationLayer);
-    return <AxisAlignedBoundingBox|Line>{
+    return <AxisAlignedBoundingBox|Line|Sphere>{
       id: '',
       type: this.annotationType,
       description: '',
@@ -946,7 +999,7 @@ abstract class PlaceTwoCornerAnnotationTool extends TwoStepAnnotationTool {
   }
 
   getUpdatedAnnotation(
-      oldAnnotation: AxisAlignedBoundingBox|Line, mouseState: MouseSelectionState,
+      oldAnnotation: AxisAlignedBoundingBox|Line|Sphere, mouseState: MouseSelectionState,
       annotationLayer: AnnotationLayerState): Annotation {
     const point = getMousePositionInAnnotationCoordinates(mouseState, annotationLayer);
     if (point === undefined) return oldAnnotation;
@@ -1020,6 +1073,46 @@ export class PlaceLineTool extends PlaceTwoCornerAnnotationTool {
 }
 PlaceLineTool.prototype.annotationType = AnnotationType.LINE;
 
+export class PlaceSphereTool extends PlaceTwoCornerAnnotationTool {
+  get description() {
+    return `annotate sphere`;
+  }
+
+  private initialRelationships: Uint64[][]|undefined;
+
+  getInitialAnnotation(mouseState: MouseSelectionState, annotationLayer: AnnotationLayerState):
+      Annotation {
+    const result = super.getInitialAnnotation(mouseState, annotationLayer);
+    this.initialRelationships = result.relatedSegments =
+        getSelectedAssociatedSegments(annotationLayer);
+    return result;
+  }
+
+  getUpdatedAnnotation(
+      oldAnnotation: Sphere, mouseState: MouseSelectionState,
+      annotationLayer: AnnotationLayerState) {
+    const result = super.getUpdatedAnnotation(oldAnnotation, mouseState, annotationLayer);
+    const initialRelationships = this.initialRelationships;
+    const newRelationships = getSelectedAssociatedSegments(annotationLayer);
+    if (initialRelationships === undefined) {
+      result.relatedSegments = newRelationships;
+    } else {
+      result.relatedSegments = Array.from(newRelationships, (newSegments, i) => {
+        const initialSegments = initialRelationships[i];
+        newSegments =
+            newSegments.filter(x => initialSegments.findIndex(y => Uint64.equal(x, y)) === -1);
+        return [...initialSegments, ...newSegments];
+      });
+    }
+    return result;
+  }
+
+  toJSON() {
+    return ANNOTATE_SPHERE_TOOL_ID;
+  }
+}
+PlaceSphereTool.prototype.annotationType = AnnotationType.SPHERE;
+
 class PlaceEllipsoidTool extends TwoStepAnnotationTool {
   getInitialAnnotation(mouseState: MouseSelectionState, annotationLayer: AnnotationLayerState):
       Annotation {
@@ -1072,6 +1165,9 @@ registerLegacyTool(
 registerLegacyTool(
     ANNOTATE_ELLIPSOID_TOOL_ID,
     (layer, options) => new PlaceEllipsoidTool(<UserLayerWithAnnotations>layer, options));
+registerLegacyTool(
+  ANNOTATE_SPHERE_TOOL_ID,
+  (layer, options) => new PlaceSphereTool(<UserLayerWithAnnotations>layer, options));
 
 const newRelatedSegmentKeyMap = EventActionMap.fromObject({
   'enter': {action: 'commit'},
@@ -1335,8 +1431,18 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
               (state.annotationSubsource === undefined ||
                x.subsourceId === state.annotationSubsource));
       if (annotationLayer === undefined) return false;
+      if (annotationLayer.source instanceof MultiscaleAnnotationSource) {
+        // if (!annotationLayer.source.hasReference(state.annotationId)) return false;
+      }
+
       const reference =
           context.registerDisposer(annotationLayer.source.getReference(state.annotationId));
+          /*
+      if (reference.value === null || reference.value === undefined) {
+        reference.dispose();
+        return false;
+      }
+      */
       parent.appendChild(
           context
               .registerDisposer(new DependentViewWidget(
@@ -1523,7 +1629,19 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
                                 .element);
                       }
 
-                      if (!annotationLayer.source.readonly || annotation.description) {
+                      let editWidget = null;
+                      let { source } = annotationLayer;
+                      if (source instanceof MultiscaleAnnotationSource) {
+                        if (source.makeEditWidget) {
+                          editWidget = source.makeEditWidget(reference);
+                          if (editWidget) {
+                            editWidget.className = 'neuroglancer-annotation-details-description';
+                            parent.appendChild(editWidget);
+                          }
+                        }
+                      }
+
+                      if ((!annotationLayer.source.readonly || annotation.description) && editWidget === null) {
                         if (annotationLayer.source.readonly) {
                           const description = document.createElement('div');
                           description.className = 'neuroglancer-annotation-details-description';
@@ -1635,13 +1753,13 @@ export function UserLayerWithAnnotationsMixin<TBase extends {new (...args: any[]
     }
 
     selectAnnotation(
-        annotationLayer: Borrowed<AnnotationLayerState>, id: string, pin: boolean|'toggle') {
+        annotationLayer: Borrowed<AnnotationLayerState>, id: string, pin: boolean|'toggle', forceShowingPanel = true) {
       this.manager.root.selectionState.captureSingleLayerState(this, state => {
         state.annotationId = id;
         state.annotationSourceIndex = annotationLayer.sourceIndex;
         state.annotationSubsource = annotationLayer.subsourceId;
         return true;
-      }, pin);
+      }, pin, forceShowingPanel);
     }
 
     toJSON() {

@@ -81,17 +81,19 @@ export function forEachVisibleSegment(
     state: VisibleSegmentsState, callback: (objectId: Uint64, rootObjectId: Uint64) => void) {
   const visibleSegments = getVisibleSegments(state);
   const segmentEquivalences = getSegmentEquivalences(state);
-  const highBitRepresentative = segmentEquivalences.disjointSets.highBitRepresentative.value;
-  for (let rootObjectId of visibleSegments) {
-    // TODO(jbms): Remove this check if logic is added to ensure that it always holds.
-    if (!segmentEquivalences.disjointSets.isMinElement(rootObjectId)) {
-      continue;
-    }
-    for (let objectId of segmentEquivalences.setElements(rootObjectId)) {
-      if (highBitRepresentative && isHighBitSegment(objectId)) {
+  if (segmentEquivalences.disjointSets) {
+    const highBitRepresentative = segmentEquivalences.disjointSets.highBitRepresentative.value;
+    for (let rootObjectId of visibleSegments) {
+      // TODO(jbms): Remove this check if logic is added to ensure that it always holds.
+      if (segmentEquivalences.disjointSets === undefined || !segmentEquivalences.disjointSets.isMinElement(rootObjectId)) {
         continue;
       }
-      callback(objectId, rootObjectId);
+      for (let objectId of segmentEquivalences.setElements(rootObjectId)) {
+        if (highBitRepresentative && isHighBitSegment(objectId)) {
+          continue;
+        }
+        callback(objectId, rootObjectId);
+      }
     }
   }
 }

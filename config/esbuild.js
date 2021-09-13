@@ -231,7 +231,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
       format: 'esm',
     });
     for (const entry of buildResult.outputFiles) {
-      if (entry.path.endsWith('.css')) continue;
+      // if (entry.path.endsWith('.css')) continue;
       await fs.promises.mkdir(path.dirname(entry.path), {recursive: true});
       await fs.promises.writeFile(entry.path, entry.contents);
     }

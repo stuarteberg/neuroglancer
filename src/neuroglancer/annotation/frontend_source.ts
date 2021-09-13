@@ -30,6 +30,8 @@ import {Buffer} from 'neuroglancer/webgl/buffer';
 import {GL} from 'neuroglancer/webgl/context';
 import {registerRPC, registerSharedObjectOwner, RPC, SharedObject} from 'neuroglancer/worker_rpc';
 
+const DEBUG = false;
+
 export interface AnnotationGeometryChunkSourceOptions extends SliceViewChunkSourceOptions {
   spec: AnnotationGeometryChunkSpecification;
   parent: Borrowed<MultiscaleAnnotationSource>;
@@ -354,6 +356,9 @@ export class MultiscaleAnnotationSource extends SharedObject implements
   readonly relationships: readonly string[];
   readonly properties: Readonly<AnnotationPropertySpec>[];
   readonly annotationPropertySerializer: AnnotationPropertySerializer;
+  getUser?(): string|undefined;
+  invalidateCache?(): void;
+  makeEditWidget: (reference: AnnotationReference) => HTMLElement|null;
   constructor(public chunkManager: Borrowed<ChunkManager>, options: {
     rank: number,
     relationships: readonly string[],
@@ -371,6 +376,11 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     for (let i = 0, count = relationships.length; i < count; ++i) {
       segmentFilteredSources.push(
           this.registerDisposer(new AnnotationSubsetGeometryChunkSource(chunkManager, this, i)));
+    }
+    if (DEBUG) {
+      this.referencesChanged.add((source: {action: string, id?: string}) => {
+        console.log('annotation references changed:', source);
+      });
     }
   }
 
@@ -405,8 +415,10 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     const reference = new AnnotationReference(annotation.id);
     reference.value = annotation;
     this.references.set(reference.id, reference);
+    this.referencesChanged.dispatch({action: 'adding', id: reference.id});
     reference.registerDisposer(() => {
       this.references.delete(reference.id);
+      this.referencesChanged.dispatch({action: 'deref', id: reference.id});
     });
     this.applyLocalUpdate(
         reference, /*existing=*/ false, /*commit=*/ commit, /*newAnnotation=*/ annotation);
@@ -498,6 +510,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     if (reference !== undefined) {
       reference.value = annotation || null;
       reference.changed.dispatch();
+      this.referencesChanged.dispatch({action: 'changed', id});
     }
     this.chunkManager.chunkQueueManager.visibleChunksChanged.dispatch();
   }
@@ -509,6 +522,26 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     this.applyLocalUpdate(reference, /*existing=*/ true, /*commit=*/ true, reference.value!);
   }
 
+  updateReference(annotation: Annotation) {
+    let existing = this.references.get(annotation.id);
+    if (existing !== undefined) {
+      existing.value = annotation;
+    } else {
+      let reference = new AnnotationReference(annotation.id);
+      this.references.set(annotation.id, reference);
+      reference.value = annotation;
+      this.referencesChanged.dispatch({action: 'update', id: reference.id});
+      reference.registerDisposer(() => {
+        this.references.delete(reference.id);
+        this.referencesChanged.dispatch({action: 'deref', id: reference.id});
+      });
+    }
+  }
+
+  hasReference(id: AnnotationId): Boolean {
+    return this.references.has(id);
+  }
+
   getReference(id: AnnotationId): Owned<AnnotationReference> {
     let existing = this.references.get(id);
     if (existing !== undefined) {
@@ -516,13 +549,16 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     }
     existing = new AnnotationReference(id);
     this.references.set(id, existing);
+    this.referencesChanged.dispatch({'action': 'get', id});
+    // existing.addRef(); //Looks like it is necessary
     this.rpc!.invoke(ANNOTATION_REFERENCE_ADD_RPC_ID, {id: this.rpcId, annotation: id});
     existing.registerDisposer(() => {
       this.references.delete(id);
+      this.referencesChanged.dispatch({'action': 'deref', id});
       this.rpc!.invoke(ANNOTATION_REFERENCE_DELETE_RPC_ID, {id: this.rpcId, annotation: id});
     });
     const chunk = this.metadataChunkSource.chunks.get(id);
-    if (chunk !== undefined) {
+    if (chunk !== undefined && chunk.annotation !== null) {
       existing.value = chunk.annotation;
     }
     return existing;
@@ -561,6 +597,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
           tempUpper.set(tempLower);
           break;
         case AnnotationType.LINE:
+        case AnnotationType.SPHERE:
         case AnnotationType.AXIS_ALIGNED_BOUNDING_BOX:
           matrix.transformPoint(
               tempLower, source.multiscaleToChunkTransform, rank + 1, annotation.pointA, rank);
@@ -626,7 +663,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       }
       localUpdate.reference.id = newAnnotation.id;
       this.references.delete(id);
-      this.references.set(newAnnotation.id, localUpdate.reference);
+      this.references.set(newAnnotation.id, localUpdate.reference.addRef());
       this.localUpdates.delete(id);
       this.localUpdates.set(newAnnotation.id, localUpdate);
       if (localUpdate.reference.value !== null) {
@@ -638,6 +675,7 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       }
       localUpdate.reference.changed.dispatch();
     }
+    let added = localUpdate.existingAnnotation === undefined;
     localUpdate.existingAnnotation = newAnnotation || undefined;
     localUpdate.commitInProgress = undefined;
     let {pendingCommit} = localUpdate;
@@ -652,6 +690,17 @@ export class MultiscaleAnnotationSource extends SharedObject implements
       this.sendCommitRequest(localUpdate, pendingCommit);
     } else {
       this.revertLocalUpdate(localUpdate);
+      if (added) {
+        this.childAdded.dispatch(newAnnotation!);
+        this.referencesChanged.dispatch({action: 'added', id: newAnnotation!.id});
+      } else if (newAnnotation === null) {
+        this.references.get(id)!.dispose();
+        this.childDeleted.dispatch(id);
+        this.referencesChanged.dispatch({action: 'deleted', id});
+      } else {
+        this.childUpdated.dispatch(newAnnotation);
+        this.referencesChanged.dispatch({action: 'updated', id: newAnnotation.id});
+      }
     }
   }
 
@@ -711,15 +760,21 @@ export class MultiscaleAnnotationSource extends SharedObject implements
     reference.dispose();
 
     this.localUpdates.delete(id);
+
+    if (DEBUG) {
+      console.log('#references', this.references.size);
+    }
   }
 
   // FIXME
   changed = new NullarySignal();
+  referencesChanged = new Signal<(source: {action: string, id?: string}) => void>();
   * [Symbol.iterator](): Iterator<Annotation> {}
   readonly = false;
   childAdded: Signal<(annotation: Annotation) => void>;
   childUpdated: Signal<(annotation: Annotation) => void>;
   childDeleted: Signal<(annotationId: string) => void>;
+  childRefreshed = new NullarySignal();
 }
 
 registerRPC(ANNOTATION_COMMIT_UPDATE_RESULT_RPC_ID, function(x) {

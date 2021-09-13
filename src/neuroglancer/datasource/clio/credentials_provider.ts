@@ -1,6 +1,10 @@
 /**
  * @license
- * Copyright 2019 Google Inc.
+ * This work is a derivative of the Google Neuroglancer project,
+ * Copyright 2016 Google Inc.
+ * The Derivative Work is covered by
+ * Copyright 2019 Howard Hughes Medical Institute
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,14 +18,11 @@
  * limitations under the License.
  */
 
-import svg_close from 'ikonate/icons/close.svg';
-import svg_refresh from 'ikonate/icons/refresh.svg';
-import {makeIcon, MakeIconOptions} from 'neuroglancer/widget/icon';
+import {FlyEMCredentialsProvider} from 'neuroglancer/datasource/flyem/api';
+import {ClioToken} from 'neuroglancer/datasource/clio/api';
 
-export function makeCloseButton(options: MakeIconOptions = {}) {
-  return makeIcon({svg: svg_close, ...options});
-}
-
-export function makeRefreshButton(options: MakeIconOptions = {}) {
-  return makeIcon({svg: svg_refresh, ...options});
-}
+export class ClioCredentialsProvider extends FlyEMCredentialsProvider<ClioToken> {
+  constructor(public authServer: string) {
+    super(authServer);
+  }
+};

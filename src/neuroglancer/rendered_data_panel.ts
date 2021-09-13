@@ -417,7 +417,7 @@ export abstract class RenderedDataPanel extends RenderedPanel {
 
 
     registerActionListener(element, 'select-position', () => {
-      this.viewer.selectionDetailsState.select();
+      this.viewer.selectionDetailsState.select(false);
     });
 
     registerActionListener(element, 'snap', () => {

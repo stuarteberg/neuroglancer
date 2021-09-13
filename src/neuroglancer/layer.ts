@@ -49,6 +49,7 @@ import {WatchableVisibilityPriority} from 'neuroglancer/visibility_priority/fron
 import {DependentViewContext} from 'neuroglancer/widget/dependent_view_widget';
 import {TabSpecification} from 'neuroglancer/widget/tab_view';
 import {RPC} from 'neuroglancer/worker_rpc';
+import {globalViewerConfig} from 'neuroglancer/viewer';
 
 const TOOL_JSON_KEY = 'tool';
 const TOOL_BINDINGS_JSON_KEY = 'toolBindings';
@@ -236,6 +237,7 @@ export class UserLayer extends RefCounted {
 
   dataSourcesChanged = new NullarySignal();
   dataSources: LayerDataSource[] = [];
+  allowingRefresh = false;
 
   get manager() {
     return this.managedLayer.manager;
@@ -973,9 +975,11 @@ export class LayerSelectedValues extends RefCounted {
         const userLayer = layer.layer;
         if (layer.visible && userLayer !== null) {
           const {selectionState} = userLayer;
-          userLayer.resetSelectionState(selectionState);
-          selectionState.generation = generation;
-          userLayer.captureSelectionState(selectionState, mouseState);
+          if (selectionState) {
+            userLayer.resetSelectionState(selectionState);
+            selectionState.generation = generation;
+            userLayer.captureSelectionState(selectionState, mouseState);
+          }
         }
       }
     }
@@ -984,7 +988,7 @@ export class LayerSelectedValues extends RefCounted {
   get<T extends UserLayer>(userLayer: T): T['selectionState']|undefined {
     this.update();
     const {selectionState} = userLayer;
-    if (selectionState.generation !== this.changed.count) return undefined;
+    if (selectionState && selectionState.generation !== this.changed.count) return undefined;
     return selectionState;
   }
 
@@ -1104,12 +1108,14 @@ export class TrackableDataSelectionState extends RefCounted implements
 
   captureSingleLayerState<T extends UserLayer>(
       userLayer: Borrowed<T>, capture: (state: T['selectionState']) => boolean,
-      pin: boolean|'toggle' = true) {
+      pin: boolean|'toggle' = true, forceShowingPanel: boolean = true) {
     if (pin === false && (!this.location.visible || this.pin.value)) return;
     const state = {} as UserLayerSelectionState;
     userLayer.initializeSelectionState(state);
     if (capture(state)) {
-      this.location.visible = true;
+      if (forceShowingPanel) {
+        this.location.visible = true;
+      }
       if (pin === true) {
         this.pin.value = true;
       } else if (pin === 'toggle') {
@@ -1135,7 +1141,7 @@ export class TrackableDataSelectionState extends RefCounted implements
     const {value} = this;
     let obj: any;
     if (this.location.visible) {
-      obj = this.location.toJSON(DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE);
+      obj = this.location.toJSON({ ...DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE, visible: !globalViewerConfig.expectingExternalUI });
       if (this.pin.value && value !== undefined) {
         const layersJson: any = {};
         for (const layerData of value.layers) {
@@ -1158,9 +1164,11 @@ export class TrackableDataSelectionState extends RefCounted implements
     }
     return obj;
   }
-  select() {
+  select(panelOn = true) {
     const {pin} = this;
-    this.location.visible = true;
+    if (panelOn) {
+      this.location.visible = true;
+    }
     pin.value = !pin.value;
     if (pin.value) {
       this.capture();
@@ -1186,12 +1194,12 @@ export class TrackableDataSelectionState extends RefCounted implements
     }
     verifyObject(obj);
     // If the object is present, then visible by default.
-    this.location.restoreState(obj, DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE);
+    this.location.restoreState(obj, { ...DATA_SELECTION_STATE_DEFAULT_PANEL_LOCATION_VISIBLE, visible: !globalViewerConfig.expectingExternalUI });
     const coordinateSpace = this.coordinateSpace.value;
-    const position = verifyOptionalObjectProperty(
-        obj, 'position',
-        positionObj => parseFixedLengthArray(
-            new Float32Array(coordinateSpace.rank), positionObj, verifyFiniteFloat));
+    const position = coordinateSpace.rank > 0 ? verifyOptionalObjectProperty(
+      obj, 'position',
+      positionObj => parseFixedLengthArray(
+        new Float32Array(coordinateSpace.rank), positionObj, verifyFiniteFloat)) : undefined;
     const layers: PersistentLayerSelectionState[] = [];
     verifyOptionalObjectProperty(obj, 'layers', layersObj => {
       verifyObject(layersObj);

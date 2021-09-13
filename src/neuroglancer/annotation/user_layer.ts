@@ -341,6 +341,7 @@ export class AnnotationUserLayer extends Base {
         'rendering',
         {label: 'Rendering', order: -100, getter: () => new RenderingOptionsTab(this)});
     this.tabs.default = 'annotations';
+    this.allowingRefresh = true;
   }
 
   restoreState(specification: any) {

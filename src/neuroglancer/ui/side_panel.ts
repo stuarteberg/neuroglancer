@@ -204,7 +204,7 @@ export class SidePanelManager extends RefCounted {
     'top': this.makeSidePanelSideState('top'),
     'bottom': this.makeSidePanelSideState('bottom'),
   };
-  private registeredPanels = new Set<RegisteredSidePanel>();
+  registeredPanels = new Set<RegisteredSidePanel>();
   dragSource: DragSource|undefined;
   private layoutNeedsUpdate = false;
 

@@ -27,10 +27,11 @@ module.exports = function(config) {
     browsers: [
       // 'Firefox',
       // 'FirefoxHeadless',
-      // 'ChromeHeadless_custom',
-      // 'Chrome',
+      //'ChromeHeadless',
+      'Chrome',
       // 'ChromeCanary',
     ],
+    logLevel: config.LOG_DEBUG,
     colors: true,
     browserNoActivityTimeout: 60000,
     reporters: ['mocha'],

@@ -67,6 +67,9 @@ import {makeIcon} from 'neuroglancer/widget/icon';
 import {MousePositionWidget, PositionWidget} from 'neuroglancer/widget/position_widget';
 import {TrackableScaleBarOptions} from 'neuroglancer/widget/scale_bar';
 import {RPC} from 'neuroglancer/worker_rpc';
+import {setClipboard} from 'neuroglancer/util/clipboard';
+import {encodeFragment} from 'neuroglancer/ui/url_hash_binding';
+import {makeCopyButton} from 'neuroglancer/widget/copy_button';
 
 declare var NEUROGLANCER_OVERRIDE_DEFAULT_VIEWER_OPTIONS: any
 
@@ -251,6 +254,10 @@ class TrackableViewerState extends CompoundTrackable {
   }
 }
 
+export const globalViewerConfig = {
+  expectingExternalUI: false
+};
+
 export class Viewer extends RefCounted implements ViewerState {
   title = new TrackableValue<string|undefined>(undefined, verifyString);
   coordinateSpace = new TrackableCoordinateSpace();
@@ -326,6 +333,21 @@ export class Viewer extends RefCounted implements ViewerState {
   dataSourceProvider: Borrowed<DataSourceProviderRegistry>;
 
   uiConfiguration: ViewerUIConfiguration;
+  makeUrlFromState = (state: {[key: string]: any}) => {
+    if (!globalViewerConfig.expectingExternalUI) {
+      return window.location.toString();
+    } else {
+      return '/#!' + encodeFragment(JSON.stringify(state));
+    }
+  };
+
+  get expectingExternalUI() {
+    return globalViewerConfig.expectingExternalUI;
+  }
+
+  set expectingExternalUI(on) {
+    globalViewerConfig.expectingExternalUI = on;
+  }
 
   private makeUiControlVisibilityState(key: keyof ViewerUIOptions) {
     const showUIControls = this.uiConfiguration.showUIControls;
@@ -349,6 +371,7 @@ export class Viewer extends RefCounted implements ViewerState {
   }
 
   visible = true;
+  closeSelectionTab?: () => void;
 
   constructor(public display: DisplayContext, options: Partial<ViewerOptions> = {}) {
     super();
@@ -589,6 +612,18 @@ export class Viewer extends RefCounted implements ViewerState {
     }
 
     {
+      const button = makeCopyButton({
+        title: 'Copy view URL to clipboard',
+        onClick: () => {
+          const result = setClipboard(this.makeUrlFromState(this.state.toJSON()));
+          StatusMessage.showTemporaryMessage(
+              result ? 'URL copied to clipboard' : 'Failed to copy URL to clipboard');
+        }
+      });
+      topRow.appendChild(button);
+    }
+
+    {
       const {helpPanelState} = this;
       const button =
           this.registerDisposer(new CheckboxIcon(helpPanelState.location.watchableVisible, {
@@ -641,6 +676,14 @@ export class Viewer extends RefCounted implements ViewerState {
           this.selectedLayer),
     }));
     gridContainer.appendChild(this.sidePanelManager.element);
+
+    this.closeSelectionTab = () => {
+      for (const panel of this.sidePanelManager.registeredPanels) {
+        if (panel.panel instanceof SelectionDetailsPanel) {
+          panel.panel.close();
+        }
+      }
+    };
 
     this.registerDisposer(this.sidePanelManager.registerPanel({
       location: this.statisticsDisplayState.location,
@@ -696,6 +739,14 @@ export class Viewer extends RefCounted implements ViewerState {
     this.registerDisposer(registerActionListener(this.element, action, handler));
   }
 
+  bindCallback(action: string, callback: (self: any) => void) {
+    const handler = () => {
+      callback(this);
+    };
+    this.registerDisposer(registerActionListener(this.element, action, handler));
+  }
+
+
   /**
    * Called once by the constructor to register the action listeners.
    */
@@ -703,6 +754,7 @@ export class Viewer extends RefCounted implements ViewerState {
     for (const action of ['recolor', 'clear-segments']) {
       this.bindAction(action, () => {
         this.layerManager.invokeAction(action);
+        this.closeSelectionTab && this.closeSelectionTab();
       });
     }
 
@@ -783,6 +835,10 @@ export class Viewer extends RefCounted implements ViewerState {
 
   editJsonState() {
     new StateEditorDialog(this);
+  }
+
+  copyJsonStateToUrl() {
+    setClipboard(this.makeUrlFromState(this.state.toJSON()));
   }
 
   showStatistics(value: boolean|undefined = undefined) {
