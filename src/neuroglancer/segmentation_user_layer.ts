@@ -59,6 +59,7 @@ import {rangeLayerControl} from 'neuroglancer/widget/layer_control_range';
 import {renderScaleLayerControl} from 'neuroglancer/widget/render_scale_widget';
 import {colorSeedLayerControl, fixedColorLayerControl} from 'neuroglancer/widget/segmentation_color_mode';
 import {registerLayerShaderControlsTool} from 'neuroglancer/widget/shader_controls';
+import { setClipboard } from './util/clipboard';
 
 const SELECTED_ALPHA_JSON_KEY = 'selectedAlpha';
 const NOT_SELECTED_ALPHA_JSON_KEY = 'notSelectedAlpha';
@@ -632,6 +633,8 @@ export class SegmentationUserLayer extends Base {
     return maybeAugmentSegmentId(this.displayState, value, /*mustCopy=*/ true);
   }
 
+  private copiedSegments: Uint64[];
+
   handleAction(action: string, context: SegmentationActionContext) {
     switch (action) {
       case 'recolor': {
@@ -658,6 +661,34 @@ export class SegmentationUserLayer extends Base {
               visibleSegments.set(segment, newVisible);
             }
           });
+        }
+        break;
+      }
+      case 'copy-segment-id': {
+        if (!this.pick.value) break;
+        const {segmentSelectionState} = this.displayState;
+        if (segmentSelectionState.hasSelectedSegment) {
+          const segment = segmentSelectionState.selectedSegment;
+          this.copiedSegments = [segment.clone()];
+          const text = segment.toString();
+          if (setClipboard(text)) {
+            StatusMessage.showTemporaryMessage(
+              text + ' copied to clipboard');
+          }
+        }
+        break;
+      }
+      case 'add-copy-segment-id': {
+        if (!this.pick.value) break;
+        const {segmentSelectionState} = this.displayState;
+        if (segmentSelectionState.hasSelectedSegment) {
+          const segment = segmentSelectionState.selectedSegment;
+          this.copiedSegments.push(segment.clone());
+          const text = this.copiedSegments.map(s => s.toString()).join(',');
+          if (setClipboard(text)) {
+            StatusMessage.showTemporaryMessage(
+              text + ' copied to clipboard');
+          }
         }
         break;
       }

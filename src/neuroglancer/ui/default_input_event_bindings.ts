@@ -104,6 +104,8 @@ export function getDefaultRenderedDataPanelBindings() {
           'alt+wheel': {action: 'adjust-depth-range-via-wheel', preventDefault: true},
           'at:wheel': {action: 'z+1-via-wheel', preventDefault: true},
           'at:shift+wheel': {action: 'z+10-via-wheel', preventDefault: true},
+          'at:alt+mousedown2': 'copy-segment-id',
+          'at:alt+shift+mousedown2': 'add-copy-segment-id',
           'at:dblclick0': 'select',
           'at:control+mousedown0': 'annotate',
           'at:mousedown2': 'move-to-mouse-position',
