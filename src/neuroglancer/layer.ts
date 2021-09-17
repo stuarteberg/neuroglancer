@@ -462,11 +462,16 @@ export class UserLayer extends RefCounted {
     return json;
   }
 
-  setLayerPosition(modelTransform: RenderLayerTransform, layerPosition: Float32Array) {
+  setLayerPosition(modelTransform: RenderLayerTransform | null, layerPosition: Float32Array) {
     const {globalPosition} = this.manager.root;
     const {localPosition} = this;
-    gatherUpdate(globalPosition.value, layerPosition, modelTransform.globalToRenderLayerDimensions);
-    gatherUpdate(localPosition.value, layerPosition, modelTransform.localToRenderLayerDimensions);
+    if (modelTransform) {
+      gatherUpdate(globalPosition.value, layerPosition, modelTransform.globalToRenderLayerDimensions);
+      gatherUpdate(localPosition.value, layerPosition, modelTransform.localToRenderLayerDimensions);
+    } else {
+      globalPosition.value.set(layerPosition);
+      // localPosition.value.set(layerPosition);
+    }
     localPosition.changed.dispatch();
     globalPosition.changed.dispatch();
   }
@@ -855,10 +860,13 @@ export class LayerManager extends RefCounted {
     };
   }
 
-  invokeAction(action: string) {
+  invokeAction(action: string, appliedLayer?: ManagedUserLayer) {
     const context = new LayerActionContext();
     for (let managedLayer of this.managedLayers) {
       if (managedLayer.layer === null || !managedLayer.visible) {
+        continue;
+      }
+      if (appliedLayer !== undefined && managedLayer !== appliedLayer) {
         continue;
       }
       let userLayer = managedLayer.layer;

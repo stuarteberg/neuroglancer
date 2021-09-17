@@ -33,6 +33,7 @@ export class DVIDSourceParameters {
   authServer?: string;
   user?: string;
   usertag?: boolean;
+  dvidService?: string;
 }
 
 export class VolumeChunkSourceParameters extends DVIDSourceParameters {

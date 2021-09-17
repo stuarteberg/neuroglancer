@@ -30,9 +30,9 @@ export interface DVIDToken {
 }
 
 export const credentialsKey = 'DVID';
-export const defaultDvidService = 'https://ngsupport-bmcp5imp6q-uk.a.run.app';
-export const defaultMeshService = `${defaultDvidService}/small-mesh`;
-export const defaultLocateService = `${defaultDvidService}/locate-body`;
+// export const defaultDvidService = 'https://ngsupport-bmcp5imp6q-uk.a.run.app';
+// export const defaultMeshService = `${defaultDvidService}/small-mesh`;
+// export const defaultLocateService = `${defaultDvidService}/locate-body`;
 
 interface HttpCall {
   method: 'GET'|'POST'|'DELETE'|'HEAD';
@@ -160,8 +160,9 @@ export function fetchWithDVIDCredentials<T>(
 }
 
 export function fetchMeshDataFromService(parameters: DVIDSourceParameters,fragmentId: string, cancellationToken?: CancellationToken) {
-  if (defaultMeshService) {
-    const serviceUrl = defaultMeshService + `?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&decimation=0.5` + (parameters.user ? `&u=${parameters.user}` : '');
+  const {dvidService} = parameters;
+  if (dvidService) {
+    const serviceUrl = `${dvidService}/small-mesh?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&decimation=0.5` + (parameters.user ? `&u=${parameters.user}` : '');
     // console.log('Fetching mesh from ' + serviceUrl);
     return makeRequest({
       method: 'GET',

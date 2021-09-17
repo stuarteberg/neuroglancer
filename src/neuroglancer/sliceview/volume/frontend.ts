@@ -23,6 +23,7 @@ import {Disposable} from 'neuroglancer/util/disposable';
 import {GL} from 'neuroglancer/webgl/context';
 import {ShaderBuilder, ShaderProgram} from 'neuroglancer/webgl/shader';
 import {getShaderType, glsl_mixLinear} from 'neuroglancer/webgl/shader_lib';
+import { Uint64 } from 'src/neuroglancer/util/uint64';
 
 export type VolumeChunkKey = string;
 
@@ -237,6 +238,10 @@ export abstract class VolumeChunk extends SliceViewChunk {
     this.chunkDataSize = x['chunkDataSize'] || source.spec.chunkDataSize;
   }
   abstract getValueAt(dataPosition: Uint32Array): any;
+}
+
+export interface MultiscaleVolumeChunkSource {
+  getSegmentPosition?(id: Uint64): Promise<Float32Array>;
 }
 
 export abstract class MultiscaleVolumeChunkSource extends

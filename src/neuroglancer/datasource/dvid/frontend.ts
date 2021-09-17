@@ -42,6 +42,7 @@ import {MultiscaleAnnotationSource, AnnotationGeometryChunkSource} from 'neurogl
 import { makeSliceViewChunkSpecification } from 'neuroglancer/sliceview/base';
 import {Signal, NullarySignal} from 'neuroglancer/util/signal';
 import { Annotation } from 'neuroglancer/annotation';
+import { Uint64 } from 'src/neuroglancer/util/uint64';
 
 let serverDataTypes = new Map<string, DataType>();
 serverDataTypes.set('uint8', DataType.UINT8);
@@ -481,10 +482,33 @@ class DvidMultiscaleVolumeChunkSource extends MultiscaleVolumeChunkSource {
     return 3;
   }
 
+  get baseUrl() {
+    return this.sourceParameters.baseUrl;
+  }
+
+  get nodeKey() {
+    return this.sourceParameters.nodeKey;
+  }
+
+  get dataInstanceKey() {
+    return this.sourceParameters.dataInstanceKey;
+  }
+
   constructor(
-      chunkManager: ChunkManager, public baseUrl: string, public nodeKey: string,
-      public dataInstanceKey: string, public info: VolumeDataInstanceInfo, public credentialsProvider: CredentialsProvider<DVIDToken>) {
+      chunkManager: ChunkManager, public sourceParameters: DVIDSourceParameters, public info: VolumeDataInstanceInfo, public credentialsProvider: CredentialsProvider<DVIDToken>) {
     super(chunkManager);
+  }
+
+  getSegmentPosition?(id: Uint64): Promise<Float32Array> {
+    const {dvidService} = this.sourceParameters;
+    if (dvidService) {
+      // dvid=${dvidConfig.protocol}://${dvidConfig.host}&uuid=${dvidConfig.uuid}&${(user ? `&u=${user}` : '')}
+      return fetch(`${dvidService}/locate-body?dvid=${this.baseUrl}&uuid=${this.nodeKey}&body=${id.toString()}`, {
+        method: 'GET',
+      }).then((response) => response.json()).then((location) => new Float32Array(location));
+    };
+
+    return Promise.reject('No locate service is avialable');
   }
 
   getSources(volumeSourceOptions: VolumeSourceOptions) {
@@ -499,7 +523,8 @@ class DvidMultiscaleVolumeChunkSource extends MultiscaleVolumeChunkSource {
   }
 }
 
-const urlPattern = /^((?:http|https):\/\/[^\/]+)\/([^\/]+)\/([^\/\?]+)(\?.*)?$/;
+// const urlPattern = /^((?:http|https):\/\/[^\/]+)\/([^\/]+)\/([^\/\?]+)(\?.*)?$/;
+const urlPattern = /^((?:http|https):\/\/[^\/]+)\/([^\/]+)\/([^\/\?#]+)(?:(?:\?|#)(.*))?$/;
 
 function getDefaultAuthServer(baseUrl: string) {
   if (baseUrl.startsWith('https')) {
@@ -523,14 +548,19 @@ function parseSourceUrl(url: string): DVIDSourceParameters {
   };
 
   const queryString = match[4];
-  if (queryString && queryString.length > 1) {
-    const parameters = parseQueryStringParameters(queryString.substring(1));
+  if (queryString) {
+    const parameters = parseQueryStringParameters(queryString);
     if (parameters.usertag === 'true') {
       sourceParameters.usertag = true;
     }
 
     if (parameters.user) {
       sourceParameters.user = parameters.user;
+    }
+
+    const dvidService = parameters.dvidService || parameters.dvidservice || parameters['dvid-service'];
+    if (dvidService) {
+      sourceParameters.dvidService = dvidService;
     }
   }
   sourceParameters.authServer = getDefaultAuthServer(sourceParameters.baseUrl);
@@ -711,9 +741,9 @@ async function getAnnotationSource(options: GetDataSourceOptions, sourceParamete
 }
 
 function getVolumeSource(options: GetDataSourceOptions, sourceParameters: DVIDSourceParameters, dataInstanceInfo: DataInstanceInfo, credentialsProvider: CredentialsProvider<DVIDToken>) {
-  const baseUrl = sourceParameters.baseUrl;
-  const nodeKey = sourceParameters.nodeKey;
-  const dataInstanceKey = sourceParameters.dataInstanceKey;
+  // const baseUrl = sourceParameters.baseUrl;
+  // const nodeKey = sourceParameters.nodeKey;
+  // const dataInstanceKey = sourceParameters.dataInstanceKey;
 
   const info = <VolumeDataInstanceInfo>dataInstanceInfo;
 
@@ -730,7 +760,7 @@ function getVolumeSource(options: GetDataSourceOptions, sourceParameters: DVIDSo
   });
 
   const volume = new DvidMultiscaleVolumeChunkSource(
-    options.chunkManager, baseUrl, nodeKey, dataInstanceKey, info, credentialsProvider);
+    options.chunkManager, sourceParameters, info, credentialsProvider);
 
   const dataSource: DataSource = {
     modelTransform: makeIdentityTransform(modelSpace),

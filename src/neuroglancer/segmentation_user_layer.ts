@@ -808,7 +808,25 @@ export class SegmentationUserLayer extends Base {
           layer.displayState.transform.value as RenderLayerTransform, layerPosition);
       return;
     }
-    StatusMessage.showTemporaryMessage(`No position information loaded for segment ${id}`);
+
+    let hasPositionApi = false;
+    for (const layer of this.renderLayers) {
+      if (layer instanceof SegmentationRenderLayer) {
+        const source = layer.multiscaleSource;
+        if (source.getSegmentPosition) {
+          hasPositionApi = true;
+          source.getSegmentPosition(id).then(position => {
+            this.setLayerPosition(null, position);
+          }).catch(error => {
+            StatusMessage.showTemporaryMessage(`Failed to retrieve position for segment ${id}: ${error}`);
+          });
+        }
+      }
+    }
+
+    if (!hasPositionApi) {
+      StatusMessage.showTemporaryMessage(`No position information loaded for segment ${id}`);
+    }
   }
 
   static type = 'segmentation';
