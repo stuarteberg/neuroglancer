@@ -758,7 +758,14 @@ export class Viewer extends RefCounted implements ViewerState {
       });
     }
 
-    for (const action of ['select', 'copy-segment-id', 'add-copy-segment-id']) {
+    for (const action of ['select']) {
+      this.bindAction(action, () => {
+        this.mouseState.updateUnconditionally();
+        this.layerManager.invokeAction(action);
+      });
+    }
+
+    for (const action of ['copy-segment-id', 'add-copy-segment-id']) {
       this.bindAction(action, () => {
         this.mouseState.updateUnconditionally();
         this.layerManager.invokeAction(action, this.selectedLayer.layer);
