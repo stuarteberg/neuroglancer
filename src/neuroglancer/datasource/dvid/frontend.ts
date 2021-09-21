@@ -189,11 +189,10 @@ export class VolumeDataInstanceInfo extends DataInstanceInfo {
       }
 
       let volParameters: VolumeChunkSourceParameters = {
-        'baseUrl': parameters.baseUrl,
-        'nodeKey': parameters.nodeKey,
-        'dataInstanceKey': dataInstanceKey,
-        'dataScale': level.toString(),
-        'encoding': encoding,
+        ...parameters,
+        dataInstanceKey,
+        dataScale: level.toString(),
+        encoding
       };
       const chunkToMultiscaleTransform = mat4.create();
       for (let i = 0; i < 3; ++i) {
@@ -494,6 +493,10 @@ class DvidMultiscaleVolumeChunkSource extends MultiscaleVolumeChunkSource {
     return this.sourceParameters.dataInstanceKey;
   }
 
+  get supervoxels() {
+    return this.sourceParameters.supervoxels || false;
+  }
+
   constructor(
       chunkManager: ChunkManager, public sourceParameters: DVIDSourceParameters, public info: VolumeDataInstanceInfo, public credentialsProvider: CredentialsProvider<DVIDToken>) {
     super(chunkManager);
@@ -503,7 +506,7 @@ class DvidMultiscaleVolumeChunkSource extends MultiscaleVolumeChunkSource {
     const {dvidService} = this.sourceParameters;
     if (dvidService) {
       // dvid=${dvidConfig.protocol}://${dvidConfig.host}&uuid=${dvidConfig.uuid}&${(user ? `&u=${user}` : '')}
-      return fetch(`${dvidService}/locate-body?dvid=${this.baseUrl}&uuid=${this.nodeKey}&body=${id.toString()}`, {
+      return fetch(`${dvidService}/locate-body?dvid=${this.baseUrl}&uuid=${this.nodeKey}&body=${id.toString()}${this.supervoxels ? '&supervoxels=true' : ''}`, {
         method: 'GET',
       }).then((response) => response.json()).then((location) => new Float32Array(location));
     };
@@ -513,13 +516,7 @@ class DvidMultiscaleVolumeChunkSource extends MultiscaleVolumeChunkSource {
 
   getSources(volumeSourceOptions: VolumeSourceOptions) {
     return this.info.getSources(
-        this.chunkManager, {
-          'baseUrl': this.baseUrl,
-          'nodeKey': this.nodeKey,
-          'dataInstanceKey': this.dataInstanceKey,
-        },
-        volumeSourceOptions,
-        this.credentialsProvider);
+        this.chunkManager, this.sourceParameters, volumeSourceOptions, this.credentialsProvider);
   }
 }
 
@@ -562,6 +559,8 @@ function parseSourceUrl(url: string): DVIDSourceParameters {
     if (dvidService) {
       sourceParameters.dvidService = dvidService;
     }
+
+    sourceParameters.supervoxels = (parameters.supervoxels === 'true');
   }
   sourceParameters.authServer = getDefaultAuthServer(sourceParameters.baseUrl);
   return sourceParameters;
@@ -815,17 +814,15 @@ function getVolumeSource(options: GetDataSourceOptions, sourceParameters: DVIDSo
 }
 
 export function getDataSource(options: GetDataSourceOptions): Promise<DataSource> {
-  const sourceParameters = parseSourceUrl(options.providerUrl);
-  const {baseUrl, nodeKey, dataInstanceKey} = sourceParameters;
-
   return options.chunkManager.memoize.getUncounted(
       {
         type: 'dvid:MultiscaleVolumeChunkSource',
-        baseUrl,
-        nodeKey: nodeKey,
-        dataInstanceKey,
+        sourceUrl: options.providerUrl,
       },
       async () => {
+        const sourceParameters = parseSourceUrl(options.providerUrl);
+        const {baseUrl, nodeKey, dataInstanceKey} = sourceParameters;
+
         const credentialsProvider = options.credentialsManager.getCredentialsProvider<DVIDToken>(
             credentialsKey,
             {dvidServer: sourceParameters.baseUrl, authServer: sourceParameters.authServer});

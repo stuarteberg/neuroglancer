@@ -27,7 +27,7 @@ import {Endianness} from 'neuroglancer/util/endian';
 import {registerSharedObject, SharedObject, RPC} from 'neuroglancer/worker_rpc';
 import {ChunkSourceParametersConstructor} from 'neuroglancer/chunk_manager/base';
 import {WithSharedCredentialsProviderCounterpart} from 'neuroglancer/credentials_provider/shared_counterpart';
-import {DVIDInstance, DVIDToken, makeRequestWithCredentials, appendQueryStringForDvid, fetchMeshDataFromService} from 'neuroglancer/datasource/dvid/api';
+import {DVIDInstance, DVIDToken, makeRequestWithCredentials, appendQueryStringForDvid, fetchMeshDataFromService, appendQueryString} from 'neuroglancer/datasource/dvid/api';
 import {DVIDPointAnnotation, DVIDAnnotation, DVIDAnnotationFacade} from 'neuroglancer/datasource/dvid/utils';
 import {verifyObject, verifyObjectProperty, verifyString, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
@@ -45,6 +45,10 @@ function DVIDSource<Parameters, TBase extends {new (...args: any[]): SharedObjec
 (DVIDSource(SkeletonSource, SkeletonSourceParameters)) {
   download(chunk: SkeletonChunk, cancellationToken: CancellationToken) {
     const {parameters} = this;
+    if (parameters.supervoxels) {
+      return Promise.reject();
+    }
+
     let bodyid = `${chunk.objectId}`;
     const url = `${parameters.baseUrl}/api/node/${parameters['nodeKey']}` +
         `/${parameters['dataInstanceKey']}/key/` + bodyid + '_swc';
@@ -72,10 +76,14 @@ export function decodeFragmentChunk(chunk: FragmentChunk, response: ArrayBuffer)
 @registerSharedObject() export class DVIDMeshSource extends
 (DVIDSource(MeshSource, MeshSourceParameters)) {
   download(chunk: ManifestChunk) {
-    // DVID does not currently store meshes chunked, the main
-    // use-case is for low-resolution 3D views.
-    // for now, fragmentId is the body id
-    chunk.fragmentIds = [`${chunk.objectId}`];
+    if (this.parameters.supervoxels) {
+      chunk.fragmentIds = [];
+    } else {
+      // DVID does not currently store meshes chunked, the main
+      // use-case is for low-resolution 3D views.
+      // for now, fragmentId is the body id
+      chunk.fragmentIds = [`${chunk.objectId}`];
+    }
     return Promise.resolve(undefined);
   }
 
@@ -332,6 +340,9 @@ function parseAnnotations(
 
       // if the volume is an image, get a jpeg
       path = this.getPath(chunkPosition, chunkDataSize);
+      if (params.supervoxels) {
+        path = appendQueryString(path, 'supervoxels', 'true');
+      }
     }
     const decoder = this.getDecoder(params);
     const response = await makeRequestWithCredentials(

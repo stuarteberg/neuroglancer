@@ -64,17 +64,24 @@ export class DVIDInstance {
   }
 }
 
+export function appendQueryString(url: string, name: string, value: string) {
+  return `${url}${url.includes('?') ? '&' : '?'}${name}=${value}`;
+}
+
 export function appendQueryStringForDvid(url: string, user: string|null|undefined) {
+  let newUrl = appendQueryString(url, 'app', 'Neuroglancer');
+  /*
   if (url.includes('?')) {
     url += '&';
   } else {
     url += '?';
   }
   url += 'app=Neuroglancer';
+  */
   if (user) {
-    url += `&u=${user}`;
+    newUrl += `&u=${user}`;
   }
-  return url;
+  return newUrl;
 }
 
 export function responseText(response: Response): Promise<any> {

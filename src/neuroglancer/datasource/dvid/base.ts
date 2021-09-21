@@ -34,6 +34,7 @@ export class DVIDSourceParameters {
   user?: string;
   usertag?: boolean;
   dvidService?: string;
+  supervoxels?: boolean;
 }
 
 export class VolumeChunkSourceParameters extends DVIDSourceParameters {
