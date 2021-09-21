@@ -10,6 +10,8 @@ import 'neuroglancer/datasource/clio/register_default';
 import 'neuroglancer/datasource/brainmaps/register_default';
 import 'neuroglancer/datasource/brainmaps/register_credentials_provider';
 import 'neuroglancer/datasource/precomputed/register_default';
+import 'neuroglancer/datasource/n5/register_default';
+import 'neuroglancer/datasource/zarr/register_default';
 import 'neuroglancer/segmentation_user_layer';
 import 'neuroglancer/image_user_layer';
 
