@@ -173,26 +173,22 @@ export class ClioAnnotationGeometryChunkSource extends (ClioSource(AnnotationGeo
   }
   async download(chunk: AnnotationGeometryChunk, cancellationToken: CancellationToken) {
     // let values: any[] = [];
-    try {
-      getAnnotationStore(this.parameters).clear();
+    getAnnotationStore(this.parameters).clear();
 
-      const clioInstance = new ClioInstance(this.parameters);
-      let pointAnnotationValues = await makeRequestWithCredentials(
-        this.credentialsProvider,
-        isAuthRefreshable(this.parameters),
-        {
-          method: 'GET',
-          url: clioInstance.getAllAnnotationsUrl(),
-          payload: undefined,
-          responseType: 'json',
-        },
-        cancellationToken);
-      // values = [...pointAnnotationValues];
+    const clioInstance = new ClioInstance(this.parameters);
+    let pointAnnotationValues = await makeRequestWithCredentials(
+      this.credentialsProvider,
+      isAuthRefreshable(this.parameters),
+      {
+        method: 'GET',
+        url: clioInstance.getAllAnnotationsUrl(),
+        payload: undefined,
+        responseType: 'json',
+      },
+      cancellationToken);
+    // values = [...pointAnnotationValues];
 
-      return parseAnnotations(this, chunk, pointAnnotationValues, this.parameters.properties, true);
-    } catch(e) {
-      console.log(e);
-    }
+    return parseAnnotations(this, chunk, pointAnnotationValues, this.parameters.properties, true);
   }
 }
 
