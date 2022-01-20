@@ -62,11 +62,17 @@ export function makeRequestWithCredentials<TToken>(
   tokenRefreshable: Boolean,
   httpCall: HttpCall & { responseType: XMLHttpRequestResponseType },
   cancellationToken: CancellationToken = uncancelableToken): Promise<any> {
+    const requestInit: RequestInit = { method: httpCall.method, body: httpCall.payload };
+    if (requestInit.method === 'POST') { //Only supports posting json
+      requestInit.headers = {
+        'Content-Type': 'application/json',
+      };
+    }
     return fetchWithFlyEMCredentials(
       credentialsProvider,
       tokenRefreshable,
       httpCall.url,
-      { method: httpCall.method, body: httpCall.payload },
+      requestInit,
       httpCall.responseType === '' ? responseText : (httpCall.responseType === 'json' ? responseJson : responseArrayBuffer),
       cancellationToken
     );
