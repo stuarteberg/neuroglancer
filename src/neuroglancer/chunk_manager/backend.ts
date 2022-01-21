@@ -412,9 +412,14 @@ function startChunkDownload(chunk: Chunk) {
 }
 
 function cancelChunkDownload(chunk: Chunk) {
-  const token = chunk.downloadCancellationToken!;
+  const token = chunk.downloadCancellationToken;
   chunk.downloadCancellationToken = undefined;
-  token.cancel();
+  // token can be undefined because of a race condition when used in react-neuroglancer
+  if (token) {
+    token.cancel();
+  } else {
+    console.log('Unexpected undefined token in', chunk);
+  }
 }
 
 class ChunkPriorityQueue {
