@@ -48,6 +48,7 @@ export class SkeletonSourceParameters extends DVIDSourceParameters {
 }
 
 export class MeshSourceParameters extends DVIDSourceParameters {
+  segmentationName: string;
   static RPC_ID = 'dvid/MeshSource';
 }
 

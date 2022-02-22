@@ -22,7 +22,7 @@ import {CredentialsProvider} from 'neuroglancer/credentials_provider';
 import {fetchWithCredentials} from 'neuroglancer/credentials_provider/http_request';
 import {CancellationToken, uncancelableToken} from 'neuroglancer/util/cancellation';
 import {cancellableFetchOk, responseArrayBuffer, responseJson, ResponseTransform} from 'neuroglancer/util/http_request';
-import {DVIDSourceParameters} from 'neuroglancer/datasource/dvid/base';
+import {MeshSourceParameters} from 'neuroglancer/datasource/dvid/base';
 
 export interface DVIDToken {
   // If token is undefined, it indicates anonymous credentials that may be retried.
@@ -166,10 +166,10 @@ export function fetchWithDVIDCredentials<T>(
       cancellationToken);
 }
 
-export function fetchMeshDataFromService(parameters: DVIDSourceParameters,fragmentId: string, cancellationToken?: CancellationToken) {
+export function fetchMeshDataFromService(parameters: MeshSourceParameters,fragmentId: string, cancellationToken?: CancellationToken) {
   const {dvidService} = parameters;
   if (dvidService) {
-    const serviceUrl = `${dvidService}/small-mesh?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&decimation=0.5` + (parameters.user ? `&u=${parameters.user}` : '');
+    const serviceUrl = `${dvidService}/small-mesh?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&decimation=0.5&segmentation=${parameters.segmentationName}${parameters.user ? `&u=${parameters.user}` : ''}`;
     // console.log('Fetching mesh from ' + serviceUrl);
     return makeRequest({
       method: 'GET',

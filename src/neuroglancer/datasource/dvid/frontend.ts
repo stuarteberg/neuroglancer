@@ -781,7 +781,8 @@ function getVolumeSource(options: GetDataSourceOptions, sourceParameters: DVIDSo
         mesh: options.chunkManager.getChunkSource(DVIDMeshSource, {
           parameters: {
             ...sourceParameters,
-            'dataInstanceKey': info.meshSrc
+            segmentationName: info.name,
+            dataInstanceKey: info.meshSrc
           },
           'credentialsProvider': credentialsProvider
         })
