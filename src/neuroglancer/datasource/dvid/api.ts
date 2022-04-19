@@ -169,7 +169,7 @@ export function fetchWithDVIDCredentials<T>(
 export function fetchMeshDataFromService(parameters: MeshSourceParameters,fragmentId: string, cancellationToken?: CancellationToken) {
   const {dvidService} = parameters;
   if (dvidService) {
-    const serviceUrl = `${dvidService}/small-mesh?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&decimation=0.5&segmentation=${parameters.segmentationName}${parameters.user ? `&u=${parameters.user}` : ''}`;
+    const serviceUrl = `${dvidService}/small-mesh?dvid=${parameters.baseUrl}&uuid=${parameters.nodeKey}&body=${fragmentId}&segmentation=${parameters.segmentationName}${parameters.user ? `&u=${parameters.user}` : ''}`;
     // console.log('Fetching mesh from ' + serviceUrl);
     return makeRequest({
       method: 'GET',
