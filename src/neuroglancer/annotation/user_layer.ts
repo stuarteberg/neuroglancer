@@ -534,9 +534,10 @@ export class AnnotationUserLayer extends Base {
     x[ANNOTATION_PROPERTIES_JSON_KEY] =
         annotationPropertySpecsToJson(this.localAnnotationProperties);
     const {localAnnotationRelationships} = this;
-    x[ANNOTATION_RELATIONSHIPS_JSON_KEY] = (localAnnotationRelationships.length === 1 &&
+    x[ANNOTATION_RELATIONSHIPS_JSON_KEY] = (localAnnotationRelationships &&
+                                            localAnnotationRelationships.length === 1 &&
                                             localAnnotationRelationships[0] === 'segments') ?
-        undefined :
+          undefined :
         localAnnotationRelationships;
     x[IGNORE_NULL_SEGMENT_FILTER_JSON_KEY] =
         this.annotationDisplayState.ignoreNullSegmentFilter.toJSON();
