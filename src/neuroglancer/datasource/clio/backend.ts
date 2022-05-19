@@ -22,7 +22,7 @@ import {WithParameters} from 'neuroglancer/chunk_manager/backend';
 import {CancellationToken} from 'neuroglancer/util/cancellation';
 import {registerSharedObject, SharedObject, RPC} from 'neuroglancer/worker_rpc';
 import {Uint64} from 'neuroglancer/util/uint64';
-import {Annotation, AnnotationId, AnnotationSerializer, AnnotationPropertySerializer, AnnotationType, /*Sphere, Line,*/ AnnotationPropertySpec} from 'neuroglancer/annotation';
+import {Annotation, AnnotationId, AnnotationSerializer, makeAnnotationPropertySerializers, AnnotationType, /*Sphere, Line,*/ AnnotationPropertySpec} from 'neuroglancer/annotation';
 import {AnnotationGeometryChunk, AnnotationGeometryData, AnnotationMetadataChunk, AnnotationSource, AnnotationSubsetGeometryChunk, AnnotationGeometryChunkSourceBackend} from 'neuroglancer/annotation/backend';
 import {ChunkSourceParametersConstructor} from 'neuroglancer/chunk_manager/base';
 import {WithSharedCredentialsProviderCounterpart} from 'neuroglancer/credentials_provider/shared_counterpart';
@@ -91,8 +91,8 @@ function parseAnnotations(
   source: ClioAnnotationSource|ClioAnnotationGeometryChunkSource,
   chunk: AnnotationGeometryChunk | AnnotationSubsetGeometryChunk, responses: any,
   propSpec: AnnotationPropertySpec[], emittingAddSignal: boolean) {
-  const annotationPropertySerializer = new AnnotationPropertySerializer(3, propSpec);
-  const serializer = new AnnotationSerializer(annotationPropertySerializer);
+  const annotationPropertySerializers = makeAnnotationPropertySerializers(3, propSpec);
+  const serializer = new AnnotationSerializer(annotationPropertySerializers);
   if (responses) {
     let parseSingleAnnotation = (key: string, response: any, index: number, lastIndex: number) => {
       if (response) {

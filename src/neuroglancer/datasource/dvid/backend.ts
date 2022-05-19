@@ -31,7 +31,7 @@ import {DVIDInstance, DVIDToken, makeRequestWithCredentials, appendQueryStringFo
 import {DVIDPointAnnotation, DVIDAnnotation, DVIDAnnotationFacade} from 'neuroglancer/datasource/dvid/utils';
 import {verifyObject, verifyObjectProperty, verifyString, parseIntVec} from 'neuroglancer/util/json';
 import {vec3} from 'neuroglancer/util/geom';
-import {AnnotationId, AnnotationSerializer, AnnotationPropertySerializer, AnnotationType, AnnotationPropertySpec} from 'neuroglancer/annotation';
+import {AnnotationId, AnnotationSerializer, makeAnnotationPropertySerializers, AnnotationType, AnnotationPropertySpec} from 'neuroglancer/annotation';
 import {AnnotationGeometryChunk, AnnotationGeometryData, AnnotationMetadataChunk, AnnotationSource, AnnotationSubsetGeometryChunk, AnnotationGeometryChunkSourceBackend} from 'neuroglancer/annotation/backend';
 import {Uint64} from 'neuroglancer/util/uint64';
 
@@ -297,8 +297,8 @@ function parseAnnotations(
   chunk: AnnotationGeometryChunk | AnnotationSubsetGeometryChunk, responses: any[] | {[key: string]: any[]},
   propSpec: AnnotationPropertySpec[], emittingAddSignal: boolean) {
 
-  const annotationPropertySerializer = new AnnotationPropertySerializer(3, propSpec);
-  const serializer = new AnnotationSerializer(annotationPropertySerializer);
+  const annotationPropertySerializers = makeAnnotationPropertySerializers(3, propSpec);
+  const serializer = new AnnotationSerializer(annotationPropertySerializers);
   if (responses) {
     let itemList = [];
     if (!Array.isArray(responses)) {
