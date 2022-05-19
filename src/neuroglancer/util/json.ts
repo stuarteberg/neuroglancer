@@ -413,8 +413,8 @@ export function verifyPositiveInt(obj: any) {
   return result;
 }
 
-export function verifyNonNegativeInt(obj: any) {
-  let result = verifyInt(obj);
+export function verifyNonnegativeInt(obj: any) {
+  const result = verifyInt(obj);
   if (result < 0) {
     throw new Error(`Expected non-negative integer, but received: ${result}.`);
   }

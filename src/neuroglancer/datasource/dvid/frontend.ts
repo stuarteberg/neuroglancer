@@ -36,7 +36,7 @@ import {StatusMessage} from 'neuroglancer/status';
 import {transposeNestedArrays} from 'neuroglancer/util/array';
 import {applyCompletionOffset, getPrefixMatchesWithDescriptions} from 'neuroglancer/util/completion';
 import {mat4, vec3} from 'neuroglancer/util/geom';
-import {parseArray, parseQueryStringParameters, verifyMapKey, verifyObject, verifyObjectAsMap, verifyObjectProperty, verifyString, verifyStringArray, verifyNonNegativeInt} from 'neuroglancer/util/json';
+import {parseArray, parseQueryStringParameters, verifyMapKey, verifyObject, verifyObjectAsMap, verifyObjectProperty, verifyString, verifyStringArray, verifyNonnegativeInt} from 'neuroglancer/util/json';
 import {VolumeInfo, MultiscaleVolumeInfo} from 'neuroglancer/datasource/flyem/datainfo';
 import {MultiscaleAnnotationSource, AnnotationGeometryChunkSource} from 'neuroglancer/annotation/frontend_source';
 import { makeSliceViewChunkSpecification } from 'neuroglancer/sliceview/base';
@@ -252,7 +252,7 @@ function getVolumeInfoResponseFromTags(tags: any, defaultObj: any) {
         MaxDownresLevel = defaultExtended.MaxDownresLevel;
       }
     } else if (typeof tags.MaxDownresLevel === 'number') {
-      MaxDownresLevel = verifyObjectProperty(tags, 'MaxDownresLevel', verifyNonNegativeInt);;
+      MaxDownresLevel = verifyObjectProperty(tags, 'MaxDownresLevel', verifyNonnegativeInt);;
     }
   } catch (e) {
     // ignore
