@@ -94,6 +94,16 @@ export function decodeFragmentChunk(chunk: FragmentChunk, response: ArrayBuffer)
       const dvidInstance = new DVIDInstance(parameters.baseUrl, parameters.nodeKey);
       const meshUrl = dvidInstance.getKeyValueUrl(parameters.dataInstanceKey, `${fragmentId}.ngmesh`);
 
+      const {forceDvidService} = parameters;
+      if (forceDvidService) {
+        return fetchMeshDataFromService(parameters, fragmentId, cancellationToken
+        ).then(
+          response => decodeFragmentChunk(chunk, response)
+        ).catch(error => {
+          console.log(error);
+        });
+      }
+
       return makeRequestWithCredentials(this.credentialsProvider, {
         method: 'GET',
         url: appendQueryStringForDvid(meshUrl, parameters.user),
