@@ -34,6 +34,7 @@ export class DVIDSourceParameters {
   user?: string;
   usertag?: boolean;
   dvidService?: string;
+  forceDvidService?: boolean;
   supervoxels?: boolean;
 }
 

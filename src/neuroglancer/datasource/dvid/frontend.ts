@@ -560,6 +560,11 @@ function parseSourceUrl(url: string): DVIDSourceParameters {
       sourceParameters.dvidService = dvidService;
     }
 
+    const force = parameters.forceDvidService || parameters.forcedividservice || parameters['force-dvid-service'];
+    if (force) {
+      sourceParameters.forceDvidService = true;
+    }
+
     sourceParameters.supervoxels = (parameters.supervoxels === 'true');
   }
   sourceParameters.authServer = getDefaultAuthServer(sourceParameters.baseUrl);
