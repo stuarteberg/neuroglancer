@@ -829,11 +829,17 @@ export function getDataSource(options: GetDataSourceOptions): Promise<DataSource
         const sourceParameters = parseSourceUrl(options.providerUrl);
         const {baseUrl, nodeKey, dataInstanceKey} = sourceParameters;
 
+        // To support special nodes like "<UUID>:master" (which  means "the most distant unlocked
+        // descendant of <UUID>"), use only "<UUID>" for the validity lookup, below.  If it is
+        // valid, then DVID itself will resolve the part after the ":".
+        const i = nodeKey.indexOf(':');
+        const nodeKeyForLookup = (i !== -1) ? nodeKey.slice(0, i) : nodeKey;
+
         const credentialsProvider = options.credentialsManager.getCredentialsProvider<DVIDToken>(
             credentialsKey,
             {dvidServer: sourceParameters.baseUrl, authServer: sourceParameters.authServer});
         const serverInfo = await getServerInfo(options.chunkManager, baseUrl, credentialsProvider);
-        let repositoryInfo = serverInfo.getNode(nodeKey);
+        const repositoryInfo = serverInfo.getNode(nodeKeyForLookup);
         if (repositoryInfo === undefined) {
           throw new Error(`Invalid node: ${JSON.stringify(nodeKey)}.`);
         }
